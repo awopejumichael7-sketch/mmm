@@ -1,0 +1,9 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read: if request.auth != null;                 // any signed-in user can stream/read
+      allow write: if request.auth != null;                 // tighten further with custom claims for admin/teacher in production
+    }
+  }
+}

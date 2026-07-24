@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam — Scholar's Camp</title>
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="brand-bar">
+  <img src="logo.png" class="logo" alt="crest">
+  <div class="brand-text"><strong>Secure Exam</strong><small>Scholar's Camp</small></div>
+</div>
+
+<div class="exam-timer" id="exam-timer" style="display:none;">--:--</div>
+
+<div class="exam-shell protected" id="exam-shell">
+  <div class="glass-card" id="intro-card">
+    <h3><i class="fa-solid fa-lock"></i> Before You Begin</h3>
+    <ul>
+      <li>This exam must be taken in fullscreen mode.</li>
+      <li>Right-click, copy, printing and screenshotting attempts are discouraged and monitored.</li>
+      <li>Leaving fullscreen repeatedly will auto-submit your exam.</li>
+      <li>The exam is timed and will auto-submit when time runs out.</li>
+      <li>Questions and options are randomized for each student.</li>
+    </ul>
+    <button class="btn-gold" id="begin-btn"><i class="fa-solid fa-play"></i> Enter Fullscreen & Begin</button>
+    <div class="form-field" style="margin-top:14px;max-width:320px;">
+      <label>Take this exam in:</label>
+      <select id="exam-lang">
+        <option value="en">English</option>
+        <option value="yo">Yoruba</option>
+        <option value="fr">French</option>
+        <option value="es">Spanish</option>
+        <option value="pt">Portuguese</option>
+        <option value="ar">Arabic</option>
+        <option value="zh">Chinese</option>
+        <option value="de">German</option>
+        <option value="it">Italian</option>
+        <option value="ru">Russian</option>
+        <option value="hi">Hindi</option>
+        <option value="sw">Swahili</option>
+      </select>
+      <small style="color:var(--muted);display:block;margin-top:4px;">Questions are automatically translated. Your answer choices still count correctly regardless of language.</small>
+    </div>
+  </div>
+  <div id="question-area"></div>
+</div>
+
+<div class="exam-warning-overlay" id="warning-overlay" style="display:none;">
+  <i class="fa-solid fa-triangle-exclamation fa-3x" style="color:#d4af37;margin-bottom:14px;"></i>
+  <h3>Fullscreen Exit Detected</h3>
+  <p id="warning-text">Please return to fullscreen to continue your exam.</p>
+  <button class="btn-gold" id="resume-btn">Return to Fullscreen</button>
+</div>
+
+<script type="module" src="exam.js"></script>
+</body>
+</html>
