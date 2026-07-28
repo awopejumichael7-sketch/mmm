@@ -1,10 +1,10 @@
 /* ==========================================================================
    CAC GOOD WORKS ASSEMBLY BELIEVERS BIBLE COLLEGE — GLOBAL STYLES
-   Palette: Deep Blue #0b2545 | Gold #d4af37 | White #ffffff
+   Palette: Emerald Green #0c4f36 | Gold #d4af37 | White #ffffff
    ========================================================================== */
 :root{
-  --navy:#0b2545;
-  --navy-light:#123a6b;
+  --navy:#0c4f36;
+  --navy-light:#178a5c;
   --gold:#d4af37;
   --gold-light:#f1d98b;
   --white:#ffffff;
@@ -14,7 +14,7 @@
   --danger:#c0392b;
   --success:#1e8e5a;
   --radius:16px;
-  --shadow:0 8px 30px rgba(11,37,69,.12);
+  --shadow:0 8px 30px rgba(12,79,54,.12);
   --glass: rgba(255,255,255,.65);
 }
 [data-theme="dark"]{
@@ -92,14 +92,14 @@ img{max-width:100%;}
 /* ---------- Login Screen ---------- */
 .login-wrap{
   min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at top left,#123a6b,#0b2545 60%);
+  background:radial-gradient(circle at top left,#178a5c,#0c4f36 60%);
   padding:20px;
 }
 .login-card{width:100%;max-width:420px;text-align:center;color:var(--navy);}
 .login-card .crest{width:86px;height:86px;border-radius:50%;border:3px solid var(--gold);margin-bottom:10px;}
 .role-tabs{display:flex;gap:8px;margin:16px 0;}
 .role-tabs button{
-  flex:1;padding:10px;border-radius:12px;border:1.5px solid rgba(11,37,69,.15);
+  flex:1;padding:10px;border-radius:12px;border:1.5px solid rgba(12,79,54,.15);
   background:#fff;cursor:pointer;font-weight:600;color:var(--muted);
 }
 .role-tabs button.active{background:var(--navy);color:#fff;border-color:var(--navy);}
@@ -168,7 +168,7 @@ mark.hl{background:var(--gold-light);padding:1px 2px;border-radius:3px;}
 .exam-shell{max-width:820px;margin:0 auto;padding:24px;}
 .exam-q{background:var(--white);padding:20px;border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow);}
 .exam-timer{position:fixed;top:14px;right:14px;background:var(--danger);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700;z-index:200;}
-.exam-warning-overlay{position:fixed;inset:0;background:rgba(11,37,69,.95);color:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:500;text-align:center;padding:20px;}
+.exam-warning-overlay{position:fixed;inset:0;background:rgba(12,79,54,.95);color:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:500;text-align:center;padding:20px;}
 
 /* ---------- Recording Studio ---------- */
 .studio-wrap{display:flex;flex-wrap:wrap;gap:20px;}
