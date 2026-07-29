@@ -15,6 +15,7 @@ import {
   query, where, orderBy, serverTimestamp, ref, uploadBytesResumable, getDownloadURL
 } from "./firebase-config.js";
 import { toast } from "./app-shell.js";
+import { openDrivePicker, makeFilePublic, verifyPublicAccess, driveFileViewUrl } from "./drive-config.js";
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -99,8 +100,9 @@ async function loadSubmissionsForAssignment(assignmentId, panel) {
           <strong>${escapeHtml(s.studentName || s.studentId || "Student")}</strong>
           <span style="color:var(--muted);font-size:.82rem;"> — ${escapeHtml(s.fileName || "file")}</span>
           ${s.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}
+          ${s.method === "drive_picker" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive file</span>' : ""}
         </div>
-        <a class="btn-outline" href="${s.fileUrl}" target="_blank" rel="noopener">${s.method === "drive_link" ? '<i class="fa-solid fa-arrow-up-right-from-square"></i> Open' : '<i class="fa-solid fa-download"></i> Download'}</a>
+        <a class="btn-outline" href="${s.fileUrl}" target="_blank" rel="noopener">${s.method === "drive_link" || s.method === "drive_picker" ? '<i class="fa-solid fa-arrow-up-right-from-square"></i> Open' : '<i class="fa-solid fa-download"></i> Download'}</a>
       </div>
       <div class="row g-2" style="margin-top:8px;">
         <div class="col-md-3 form-field"><label>Grade</label><input type="text" class="asg-grade-input" data-sub="${s.id}" value="${escapeHtml(s.grade || "")}" placeholder="e.g. 85%"></div>
@@ -125,13 +127,18 @@ async function loadSubmissionsForAssignment(assignmentId, panel) {
 /* ============================== STUDENT ============================== */
 function submitControlsHtml(assignmentId, isReplace) {
   return `
-    <div class="asg-submit-tabs" style="margin-bottom:8px;display:flex;gap:6px;">
+    <div class="asg-submit-tabs" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;">
       <button type="button" class="btn-outline asg-mode-btn active" data-mode="upload" data-asg="${assignmentId}"><i class="fa-solid fa-upload"></i> Upload File</button>
-      <button type="button" class="btn-outline asg-mode-btn" data-mode="link" data-asg="${assignmentId}"><i class="fa-brands fa-google-drive"></i> Paste Drive Link</button>
+      <button type="button" class="btn-outline asg-mode-btn" data-mode="picker" data-asg="${assignmentId}"><i class="fa-brands fa-google-drive"></i> Pick from Drive</button>
+      <button type="button" class="btn-outline asg-mode-btn" data-mode="link" data-asg="${assignmentId}"><i class="fa-solid fa-link"></i> Paste Drive Link</button>
     </div>
     <div class="asg-mode-panel" data-mode="upload" data-asg="${assignmentId}">
       <input type="file" class="asg-file-input" data-asg="${assignmentId}" style="max-width:260px;display:inline-block;">
       <button class="${isReplace ? "btn-outline" : "btn-gold"} asg-submit-btn" data-asg="${assignmentId}" type="button"><i class="fa-solid fa-upload"></i> ${isReplace ? "Replace Submission" : "Submit"}</button>
+    </div>
+    <div class="asg-mode-panel" data-mode="picker" data-asg="${assignmentId}" style="display:none;">
+      <button class="${isReplace ? "btn-outline" : "btn-gold"} asg-submit-picker-btn" data-asg="${assignmentId}" type="button"><i class="fa-brands fa-google-drive"></i> Connect & Pick a File</button>
+      <p style="color:var(--muted);font-size:.78rem;margin-top:4px;">Signs you into your own Google Drive and lets you choose a file already there. Your school's Google Drive setup must have approved your account first — if it says you can't access this app, use "Paste Drive Link" or "Upload File" instead.</p>
     </div>
     <div class="asg-mode-panel" data-mode="link" data-asg="${assignmentId}" style="display:none;">
       <input type="url" class="asg-link-input" data-asg="${assignmentId}" placeholder="Paste your Google Drive share link…" style="width:100%;max-width:320px;padding:8px 10px;border-radius:8px;border:1.5px solid #d8dde8;">
@@ -166,7 +173,7 @@ export async function renderStudentAssignments(container, { course, user, profil
       <p style="margin:10px 0;">${escapeHtml(a.description || "")}</p>
       ${sub
         ? `<div style="background:var(--bg);border-radius:10px;padding:10px 14px;">
-             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a>${sub.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}
+             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a>${sub.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}${sub.method === "drive_picker" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive file</span>' : ""}
              ${sub.grade ? `<div style="margin-top:6px;"><strong>Grade:</strong> ${escapeHtml(sub.grade)}</div>` : ""}
              ${sub.feedback ? `<div><strong>Feedback:</strong> ${escapeHtml(sub.feedback)}</div>` : ""}
              <div style="margin-top:8px;">${submitControlsHtml(a.id, true)}</div>
@@ -234,6 +241,38 @@ export async function renderStudentAssignments(container, { course, user, profil
         renderStudentAssignments(container, { course, user, profile });
       } catch (e) {
         toast(e.message || "Couldn't save your link.", "error");
+        btn.disabled = false;
+      }
+    };
+  });
+
+  wrap.querySelectorAll(".asg-submit-picker-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const assignmentId = btn.dataset.asg;
+      const progressEl = wrap.querySelector(`.asg-progress[data-asg="${assignmentId}"]`);
+      btn.disabled = true;
+      progressEl.innerHTML = "<small style='color:var(--muted);'>Opening Google sign-in…</small>";
+      try {
+        const file = await openDrivePicker();
+        if (!file) { progressEl.innerHTML = ""; btn.disabled = false; return; } // person cancelled the picker
+        progressEl.innerHTML = "<small style='color:var(--muted);'>Sharing file so your teacher can open it…</small>";
+        await makeFilePublic(file.id);
+        await verifyPublicAccess(file.id);
+        const fileUrl = driveFileViewUrl(file.id);
+        await setDoc(doc(db, "assignmentSubmissions", `${assignmentId}_${user.uid}`), {
+          assignmentId, courseId: course.id, studentUid: user.uid,
+          studentId: profile.studentId || "", studentName: profile.fullName || "",
+          fileUrl, fileName: file.name, method: "drive_picker", submittedAt: serverTimestamp()
+        }, { merge: true });
+        toast("Assignment submitted.", "success");
+        progressEl.innerHTML = "";
+        renderStudentAssignments(container, { course, user, profile });
+      } catch (e) {
+        const msg = e?.error === "access_denied" || e?.message?.includes("access_denied")
+          ? "Google blocked this — your account may not be approved to use this app's Drive access yet. Try \"Paste Drive Link\" or \"Upload File\" instead."
+          : (e?.message || "Couldn't connect to Google Drive. Try \"Paste Drive Link\" or \"Upload File\" instead.");
+        toast(msg, "error");
+        progressEl.innerHTML = "";
         btn.disabled = false;
       }
     };
