@@ -11,6 +11,9 @@ import { fetchPublicDriveFile } from "./drive-config.js";
 import { renderWhiteboard, stopWhiteboard } from "./whiteboard.js";
 import { renderCalculator } from "./calculator.js";
 import { renderDictionary } from "./dictionary.js";
+import { initNotifications } from "./notifications.js";
+import { renderStudentAssignments } from "./assignments.js";
+import { handleCheckinFromUrl } from "./attendance-checkin.js";
 
 initTheme();
 registerServiceWorker();
@@ -33,6 +36,9 @@ guardRoute("student").then(async (u) => {
   }
   const savedId = localStorage.getItem("cacgw_selected_course");
   course = myCourses.find(c => c.id === savedId) || myCourses[0] || null;
+
+  initNotifications({ role: "student", uid: u.uid, courseId: course?.id });
+  handleCheckinFromUrl({ uid: u.uid, studentId: profile.studentId || u.uid, myCourseIds: courseIds });
 
   bindSidebar();
   renderOverview();
@@ -59,7 +65,8 @@ function views() {
     overview: renderOverview, library: renderLibrary, media: renderMedia, live: renderLive,
     exams: renderExams, certificates: renderCertificates,
     questions: renderQuestions, feedback: renderFeedback,
-    whiteboard: renderWhiteboardView, calculator: renderCalculatorView, dictionary: renderDictionaryView
+    whiteboard: renderWhiteboardView, calculator: renderCalculatorView, dictionary: renderDictionaryView,
+    assignments: renderAssignmentsView
   };
 }
 
@@ -82,6 +89,15 @@ function renderCalculatorView() {
 function renderDictionaryView() {
   currentView = "dictionary";
   renderDictionary(main);
+}
+
+/* ---------- Assignments (free, uses existing Firebase Storage) ---------- */
+function renderAssignmentsView() {
+  currentView = "assignments";
+  if (!course) { main.innerHTML = "<p>No course assigned yet.</p>"; return; }
+  main.innerHTML = `<h2><i class="fa-solid fa-upload"></i> Assignments — ${course.title}</h2>` + courseSwitcherHTML() + `<div id="asg-host"></div>`;
+  bindCourseSwitcher();
+  renderStudentAssignments(document.getElementById("asg-host"), { course, user, profile });
 }
 
 /* ---------- Course switcher — shown at the top of every course-specific view ---------- */
@@ -149,8 +165,18 @@ async function renderLibrary() {
     ${courseSwitcherHTML()}
     <div id="lib-tabs" class="tab-strip">
     <button data-t="ebooks" class="active">Ebooks</button><button data-t="handbooks">Handbook</button><button data-t="syllabus">Syllabus</button>
-    <button data-t="materials">Lesson Notes & Assignments</button></div><div id="lib-list">Loading…</div>`;
+    <button data-t="materials">Lesson Notes & Assignments</button></div>
+    <input id="lib-search" type="text" placeholder="Search this list…" style="width:100%;max-width:320px;padding:9px 12px;border-radius:10px;border:1.5px solid #d8dde8;margin:10px 0;">
+    <div id="lib-list">Loading…</div>`;
   bindCourseSwitcher();
+
+  const applyLibSearch = () => {
+    const term = (document.getElementById("lib-search")?.value || "").trim().toLowerCase();
+    document.querySelectorAll("#lib-list .glass-card").forEach(card => {
+      card.style.display = !term || card.textContent.toLowerCase().includes(term) ? "" : "none";
+    });
+  };
+  document.getElementById("lib-search").oninput = applyLibSearch;
 
   const load = async (type) => {
     const wrap = document.getElementById("lib-list");
@@ -177,6 +203,7 @@ async function renderLibrary() {
         </div>`;
       wrap.appendChild(card);
     });
+    applyLibSearch();
   };
   document.querySelectorAll("#lib-tabs button").forEach(b => {
     b.onclick = () => { document.querySelectorAll("#lib-tabs button").forEach(x => x.classList.remove("active")); b.classList.add("active"); load(b.dataset.t); };

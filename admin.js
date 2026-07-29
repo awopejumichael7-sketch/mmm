@@ -14,9 +14,22 @@ import { toast, initTheme, toggleTheme, registerServiceWorker } from "./app-shel
 import { openDrivePicker, makeFilePublic, verifyPublicAccess, driveFileViewUrl, loadGoogleScripts } from "./drive-config.js";
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth as getAuthSecondary, createUserWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initNotifications } from "./notifications.js";
 
 initTheme();
 registerServiceWorker();
+
+/* ---------- Reusable client-side search filter for data tables (free, no new queries) ---------- */
+function bindTableSearch(inputId, wrapId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.oninput = () => {
+    const term = input.value.trim().toLowerCase();
+    document.querySelectorAll(`#${wrapId} tbody tr`).forEach(row => {
+      row.style.display = !term || row.textContent.toLowerCase().includes(term) ? "" : "none";
+    });
+  };
+}
 const main = document.getElementById("main-content");
 let user;
 
@@ -26,6 +39,7 @@ document.getElementById("logout-btn").onclick = logout;
 guardRoute("admin").then(async (u) => {
   user = u;
   await seedCourses(db, collection, doc, setDoc, getDocs, COL);
+  initNotifications({ role: "admin", uid: u.uid });
   bindSidebar();
   renderOverview();
 });
@@ -175,8 +189,13 @@ async function renderTeachers() {
         <div class="col-12"><button class="btn-gold" type="submit"><i class="fa-solid fa-user-plus"></i> Generate ID & Create Teacher</button></div>
       </form>
     </div>
-    <div class="glass-card"><div id="teacher-table-wrap">Loading…</div></div>
+    <div class="glass-card">
+      <input id="teacher-search" type="text" placeholder="Search teachers by name, ID, or email…" style="width:100%;max-width:340px;padding:9px 12px;border-radius:10px;border:1.5px solid #d8dde8;margin-bottom:14px;">
+      <div id="teacher-table-wrap">Loading…</div>
+    </div>
     <div id="teacher-courses-modal"></div>`;
+
+  bindTableSearch("teacher-search", "teacher-table-wrap");
 
   document.getElementById("t-select-all").onclick = () => document.querySelectorAll(".t-course-check").forEach(c => c.checked = true);
   document.getElementById("t-select-none").onclick = () => document.querySelectorAll(".t-course-check").forEach(c => c.checked = false);
@@ -273,8 +292,13 @@ async function renderStudents() {
         <div class="col-12"><button class="btn-gold" type="submit"><i class="fa-solid fa-user-plus"></i> Generate ID & Create Student</button></div>
       </form>
     </div>
-    <div class="glass-card"><div id="student-table-wrap">Loading…</div></div>
+    <div class="glass-card">
+      <input id="student-search" type="text" placeholder="Search students by name, ID, or email…" style="width:100%;max-width:340px;padding:9px 12px;border-radius:10px;border:1.5px solid #d8dde8;margin-bottom:14px;">
+      <div id="student-table-wrap">Loading…</div>
+    </div>
     <div id="student-courses-modal"></div>`;
+
+  bindTableSearch("student-search", "student-table-wrap");
 
   document.getElementById("s-select-all").onclick = () => document.querySelectorAll(".s-course-check").forEach(c => c.checked = true);
   document.getElementById("s-select-none").onclick = () => document.querySelectorAll(".s-course-check").forEach(c => c.checked = false);

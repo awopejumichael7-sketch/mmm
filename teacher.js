@@ -12,6 +12,8 @@ import { openDrivePicker, makeFilePublic, verifyPublicAccess, driveFileViewUrl, 
 import { renderWhiteboard, stopWhiteboard } from "./whiteboard.js";
 import { isWebGPUSupported, isModelLoaded, loadModel, sendMessage, resetConversation, getHistory, getWebGPUWarning } from "./ai-assistant.js";
 import { initNotifications } from "./notifications.js";
+import { renderTeacherAssignments } from "./assignments.js";
+import { renderQrCheckinPanel, stopQrCheckin } from "./attendance-checkin.js";
 
 initTheme();
 registerServiceWorker();
@@ -48,6 +50,7 @@ function bindSidebar() {
       a.classList.add("active");
       if (currentView === "whiteboard" && a.dataset.view !== "whiteboard") stopWhiteboard();
       if (currentView === "live" && a.dataset.view !== "live") stopWhiteboard();
+      if (currentView === "attendance" && a.dataset.view !== "attendance") stopQrCheckin();
       currentView = a.dataset.view;
       views()[currentView]();
     });
@@ -58,7 +61,7 @@ function views() {
     overview: renderOverview, materials: renderMaterials, studio: renderStudio,
     live: renderLive, attendance: renderAttendance, examQuestions: renderExamQuestions,
     grading: renderGrading, progress: renderProgress, questions: renderQuestions, feedback: renderFeedback,
-    whiteboard: renderWhiteboardView, ai: renderAI
+    whiteboard: renderWhiteboardView, ai: renderAI, assignments: renderAssignmentsView
   };
 }
 
@@ -766,12 +769,22 @@ async function endLive() {
 async function renderAttendance() {
   currentView = "attendance";
   if (!course) { main.innerHTML = "<p>No course assigned yet.</p>"; return; }
-  main.innerHTML = `<h2><i class="fa-solid fa-clipboard-check"></i> Attendance — ${course.title}</h2>${courseSwitcherHTML()}<div class="glass-card"><div id="att-list">Loading…</div></div>`;
+  main.innerHTML = `<h2><i class="fa-solid fa-clipboard-check"></i> Attendance — ${course.title}</h2>${courseSwitcherHTML()}<div class="glass-card"><div id="att-list">Loading…</div></div><div id="qr-checkin-host"></div>`;
   bindCourseSwitcher();
   const snap = await getDocs(query(collection(db, COL.attendance), where("courseId", "==", course.id)));
   let rows = "";
   snap.forEach(d => { const a = d.data(); rows += `<tr><td>${a.studentId}</td><td>${a.date}</td><td>${a.time}</td><td>${a.duration || "—"}</td></tr>`; });
   document.getElementById("att-list").innerHTML = snap.empty ? "<p>No attendance records yet.</p>" : `<table class="data-table"><thead><tr><th>Student</th><th>Date</th><th>Time</th><th>Duration</th></tr></thead><tbody>${rows}</tbody></table>`;
+  renderQrCheckinPanel(document.getElementById("qr-checkin-host"), course.id, user.uid);
+}
+
+/* ---------- Assignments (free, uses existing Firebase Storage) ---------- */
+function renderAssignmentsView() {
+  currentView = "assignments";
+  if (!course) { main.innerHTML = "<p>No course assigned yet.</p>"; return; }
+  main.innerHTML = `<h2><i class="fa-solid fa-upload"></i> Assignments — ${course.title}</h2>${courseSwitcherHTML()}<div id="asg-host"></div>`;
+  bindCourseSwitcher();
+  renderTeacherAssignments(document.getElementById("asg-host"), { course, user });
 }
 
 /* ---------- Student Questions ---------- */
