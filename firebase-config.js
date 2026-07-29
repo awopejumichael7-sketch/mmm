@@ -18,7 +18,7 @@ import {
 import {
   getFirestore, enableIndexedDbPersistence, collection, doc, setDoc, getDoc,
   getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot,
-  serverTimestamp, increment
+  serverTimestamp, increment, limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject
@@ -59,7 +59,7 @@ export {
   onAuthStateChanged, signInWithEmailAndPassword, signOut,
   createUserWithEmailAndPassword, updatePassword,
   collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, onSnapshot, serverTimestamp, increment,
+  query, where, orderBy, onSnapshot, serverTimestamp, increment, limit,
   ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject,
   getToken, onMessage
 };
