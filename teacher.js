@@ -10,7 +10,8 @@ import {
 import { toast, initTheme, toggleTheme, registerServiceWorker } from "./app-shell.js";
 import { openDrivePicker, makeFilePublic, verifyPublicAccess, driveFileViewUrl, uploadFileToDrive, loadGoogleScripts } from "./drive-config.js";
 import { renderWhiteboard, stopWhiteboard } from "./whiteboard.js";
-import { isWebGPUSupported, isModelLoaded, loadModel, sendMessage, resetConversation, getHistory } from "./ai-assistant.js";
+import { isWebGPUSupported, isModelLoaded, loadModel, sendMessage, resetConversation, getHistory, getWebGPUWarning } from "./ai-assistant.js";
+import { initNotifications } from "./notifications.js";
 
 initTheme();
 registerServiceWorker();
@@ -33,6 +34,8 @@ guardRoute("teacher").then(async (u) => {
   }
   const savedId = localStorage.getItem("cacgw_teacher_selected_course");
   course = myCourses.find(c => c.id === savedId) || myCourses[0] || null;
+
+  initNotifications({ role: "teacher", uid: u.uid, courseId: course?.id });
 
   bindSidebar();
   renderOverview();
@@ -81,8 +84,10 @@ function renderAI() {
       ? `<div class="glass-card"><p><i class="fa-solid fa-triangle-exclamation"></i> This browser doesn't support WebGPU, which the free in-browser AI needs. Try the latest Chrome or Edge on a desktop or laptop.</p></div>`
       : !loaded
         ? `<div class="glass-card">
+             <div id="ai-gpu-warning" style="display:none;background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.85rem;color:var(--muted);"></div>
              <button class="btn-gold" id="ai-load-btn" type="button"><i class="fa-solid fa-download"></i> Load AI Model (one-time download)</button>
              <div id="ai-progress" style="color:var(--muted);margin-top:12px;font-size:.85rem;"></div>
+             <button class="btn-outline" id="ai-retry-btn" type="button" style="display:none;margin-top:10px;"><i class="fa-solid fa-rotate-right"></i> Try Again</button>
            </div>`
         : `<div class="glass-card">
              <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
@@ -98,18 +103,45 @@ function renderAI() {
   if (!supported) return;
 
   if (!loaded) {
-    document.getElementById("ai-load-btn").onclick = async () => {
+    // Proactively warn if this device is only using a software/virtual GPU —
+    // exactly the situation that makes model loading look like it's frozen.
+    getWebGPUWarning().then((warning) => {
+      if (!warning) return;
+      const box = document.getElementById("ai-gpu-warning");
+      if (!box) return;
+      box.style.display = "block";
+      box.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${warning}`;
+    });
+
+    const startLoad = () => {
       const btn = document.getElementById("ai-load-btn");
       const progress = document.getElementById("ai-progress");
+      const retryBtn = document.getElementById("ai-retry-btn");
       btn.disabled = true;
-      try {
-        await loadModel((report) => { progress.textContent = report.text || ""; });
+      retryBtn.style.display = "none";
+      progress.textContent = "";
+      let compilingNoted = false;
+      loadModel((report) => {
+        if (report.stage === "compiling") {
+          if (!compilingNoted) {
+            compilingNoted = true;
+          }
+          progress.textContent = "Model downloaded. Now preparing it for your device's graphics hardware — this step shows no percentage and can take a minute or more, especially on slower or virtual machines. Please keep this tab open…";
+        } else {
+          progress.textContent = report.text || "";
+        }
+      }).then(() => {
         renderAI();
-      } catch (e) {
-        toast("Couldn't load the AI model. Your device or browser may not support it.", "error");
+      }).catch((e) => {
+        progress.textContent = "";
+        toast(e?.message || "Couldn't load the AI model on this device.", "error");
         btn.disabled = false;
-      }
+        retryBtn.style.display = "";
+      });
     };
+
+    document.getElementById("ai-load-btn").onclick = startLoad;
+    document.getElementById("ai-retry-btn").onclick = startLoad;
     return;
   }
 
