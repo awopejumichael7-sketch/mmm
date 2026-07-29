@@ -98,8 +98,9 @@ async function loadSubmissionsForAssignment(assignmentId, panel) {
         <div>
           <strong>${escapeHtml(s.studentName || s.studentId || "Student")}</strong>
           <span style="color:var(--muted);font-size:.82rem;"> — ${escapeHtml(s.fileName || "file")}</span>
+          ${s.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}
         </div>
-        <a class="btn-outline" href="${s.fileUrl}" target="_blank" rel="noopener"><i class="fa-solid fa-download"></i> Download</a>
+        <a class="btn-outline" href="${s.fileUrl}" target="_blank" rel="noopener">${s.method === "drive_link" ? '<i class="fa-solid fa-arrow-up-right-from-square"></i> Open' : '<i class="fa-solid fa-download"></i> Download'}</a>
       </div>
       <div class="row g-2" style="margin-top:8px;">
         <div class="col-md-3 form-field"><label>Grade</label><input type="text" class="asg-grade-input" data-sub="${s.id}" value="${escapeHtml(s.grade || "")}" placeholder="e.g. 85%"></div>
@@ -122,6 +123,24 @@ async function loadSubmissionsForAssignment(assignmentId, panel) {
 }
 
 /* ============================== STUDENT ============================== */
+function submitControlsHtml(assignmentId, isReplace) {
+  return `
+    <div class="asg-submit-tabs" style="margin-bottom:8px;display:flex;gap:6px;">
+      <button type="button" class="btn-outline asg-mode-btn active" data-mode="upload" data-asg="${assignmentId}"><i class="fa-solid fa-upload"></i> Upload File</button>
+      <button type="button" class="btn-outline asg-mode-btn" data-mode="link" data-asg="${assignmentId}"><i class="fa-brands fa-google-drive"></i> Paste Drive Link</button>
+    </div>
+    <div class="asg-mode-panel" data-mode="upload" data-asg="${assignmentId}">
+      <input type="file" class="asg-file-input" data-asg="${assignmentId}" style="max-width:260px;display:inline-block;">
+      <button class="${isReplace ? "btn-outline" : "btn-gold"} asg-submit-btn" data-asg="${assignmentId}" type="button"><i class="fa-solid fa-upload"></i> ${isReplace ? "Replace Submission" : "Submit"}</button>
+    </div>
+    <div class="asg-mode-panel" data-mode="link" data-asg="${assignmentId}" style="display:none;">
+      <input type="url" class="asg-link-input" data-asg="${assignmentId}" placeholder="Paste your Google Drive share link…" style="width:100%;max-width:320px;padding:8px 10px;border-radius:8px;border:1.5px solid #d8dde8;">
+      <button class="${isReplace ? "btn-outline" : "btn-gold"} asg-submit-link-btn" data-asg="${assignmentId}" type="button" style="margin-top:6px;"><i class="fa-brands fa-google-drive"></i> ${isReplace ? "Replace with Link" : "Submit Link"}</button>
+      <p style="color:var(--muted);font-size:.78rem;margin-top:4px;">Set sharing to "Anyone with the link" first, or your teacher won't be able to open it.</p>
+    </div>
+    <div class="asg-progress" data-asg="${assignmentId}" style="margin-top:6px;"></div>`;
+}
+
 export async function renderStudentAssignments(container, { course, user, profile }) {
   container.innerHTML = `<div id="asg-student-list">Loading…</div>`;
   const wrap = document.getElementById("asg-student-list");
@@ -147,22 +166,25 @@ export async function renderStudentAssignments(container, { course, user, profil
       <p style="margin:10px 0;">${escapeHtml(a.description || "")}</p>
       ${sub
         ? `<div style="background:var(--bg);border-radius:10px;padding:10px 14px;">
-             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a>
+             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a>${sub.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}
              ${sub.grade ? `<div style="margin-top:6px;"><strong>Grade:</strong> ${escapeHtml(sub.grade)}</div>` : ""}
              ${sub.feedback ? `<div><strong>Feedback:</strong> ${escapeHtml(sub.feedback)}</div>` : ""}
-             <div style="margin-top:8px;">
-               <input type="file" class="asg-file-input" data-asg="${a.id}" style="max-width:260px;display:inline-block;">
-               <button class="btn-outline asg-submit-btn" data-asg="${a.id}" type="button">Replace Submission</button>
-             </div>
-             <div class="asg-progress" data-asg="${a.id}" style="margin-top:6px;"></div>
+             <div style="margin-top:8px;">${submitControlsHtml(a.id, true)}</div>
            </div>`
-        : `<div>
-             <input type="file" class="asg-file-input" data-asg="${a.id}" style="max-width:260px;display:inline-block;">
-             <button class="btn-gold asg-submit-btn" data-asg="${a.id}" type="button"><i class="fa-solid fa-upload"></i> Submit</button>
-             <div class="asg-progress" data-asg="${a.id}" style="margin-top:6px;"></div>
-           </div>`}`;
+        : `<div>${submitControlsHtml(a.id, false)}</div>`}`;
     wrap.appendChild(card);
   }
+
+  wrap.querySelectorAll(".asg-mode-btn").forEach(btn => {
+    btn.onclick = () => {
+      const assignmentId = btn.dataset.asg;
+      wrap.querySelectorAll(`.asg-mode-btn[data-asg="${assignmentId}"]`).forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      wrap.querySelectorAll(`.asg-mode-panel[data-asg="${assignmentId}"]`).forEach(p => {
+        p.style.display = p.dataset.mode === btn.dataset.mode ? "" : "none";
+      });
+    };
+  });
 
   wrap.querySelectorAll(".asg-submit-btn").forEach(btn => {
     btn.onclick = async () => {
@@ -186,12 +208,34 @@ export async function renderStudentAssignments(container, { course, user, profil
         await setDoc(doc(db, "assignmentSubmissions", `${assignmentId}_${user.uid}`), {
           assignmentId, courseId: course.id, studentUid: user.uid,
           studentId: profile.studentId || "", studentName: profile.fullName || "",
-          fileUrl, fileName: file.name, submittedAt: serverTimestamp()
+          fileUrl, fileName: file.name, method: "upload", submittedAt: serverTimestamp()
         }, { merge: true });
         toast("Assignment submitted.", "success");
         progressEl.innerHTML = "";
         renderStudentAssignments(container, { course, user, profile });
       });
+    };
+  });
+
+  wrap.querySelectorAll(".asg-submit-link-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const assignmentId = btn.dataset.asg;
+      const linkInput = wrap.querySelector(`.asg-link-input[data-asg="${assignmentId}"]`);
+      const link = linkInput.value.trim();
+      if (!/^https?:\/\//i.test(link)) { toast("Paste a valid link starting with https://", "error"); return; }
+      btn.disabled = true;
+      try {
+        await setDoc(doc(db, "assignmentSubmissions", `${assignmentId}_${user.uid}`), {
+          assignmentId, courseId: course.id, studentUid: user.uid,
+          studentId: profile.studentId || "", studentName: profile.fullName || "",
+          fileUrl: link, fileName: "Google Drive link", method: "drive_link", submittedAt: serverTimestamp()
+        }, { merge: true });
+        toast("Assignment submitted.", "success");
+        renderStudentAssignments(container, { course, user, profile });
+      } catch (e) {
+        toast(e.message || "Couldn't save your link.", "error");
+        btn.disabled = false;
+      }
     };
   });
 }
