@@ -14,6 +14,7 @@
    is the natural place to fold them in too.
    ========================================================================== */
 import { db, collection, query, where, getDocs } from "./firebase-config.js";
+import { emptyStateHtml, loadingHtml } from "./ui-states.js";
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -25,6 +26,7 @@ let viewYear, viewMonth; // 0-indexed month, module-local so prev/next survive r
 
 export async function renderCalendarView(container, { course, role }) {
   if (!course) { container.innerHTML = "<p>No course assigned yet.</p>"; return; }
+  container.innerHTML = loadingHtml("Loading calendar…");
 
   const today = new Date();
   if (viewYear === undefined) { viewYear = today.getFullYear(); viewMonth = today.getMonth(); }
@@ -91,7 +93,7 @@ function renderMonthList(assignmentsByDate) {
     .sort(([a], [b]) => a.localeCompare(b));
 
   if (!entries.length) {
-    list.innerHTML = `<p style="color:var(--muted);">No assignment due dates this month.</p>`;
+    list.innerHTML = emptyStateHtml("No assignment due dates this month.", "fa-calendar-check");
     return;
   }
   list.innerHTML = `<div class="glass-card"><h4>This Month's Deadlines</h4>` +

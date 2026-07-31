@@ -14,6 +14,8 @@ import { isWebGPUSupported, isModelLoaded, loadModel, sendMessage, resetConversa
 import { initNotifications } from "./notifications.js";
 import { renderTeacherAssignments, renderUpcomingDeadlines } from "./assignments.js";
 import { renderCalendarView } from "./calendar.js";
+import { initSessionTimeout } from "./session-timeout.js";
+import { sendGradedEmail, sendCertificateReadyEmail } from "./email-notify.js";
 import { renderQrCheckinPanel, stopQrCheckin } from "./attendance-checkin.js";
 
 initTheme();
@@ -39,6 +41,7 @@ guardRoute("teacher").then(async (u) => {
   course = myCourses.find(c => c.id === savedId) || myCourses[0] || null;
 
   initNotifications({ role: "teacher", uid: u.uid, courseId: course?.id });
+  initSessionTimeout();
 
   bindSidebar();
   renderOverview();
@@ -1082,6 +1085,19 @@ function renderGradingCard(r, wrap) {
       needsManualGrading: false, gradedBy: user.uid, gradedAt: serverTimestamp()
     });
     await logActivity(user.uid, "teacher", "grade_theory", `${r.studentId} - ${course.id}`);
+
+    // Email the student (best-effort — never blocks the grading save above).
+    // The result doc doesn't store the student's email, so look it up once.
+    getDoc(doc(db, COL.students, r.studentUid)).then((sSnap) => {
+      if (!sSnap.exists()) return;
+      const s = sSnap.data();
+      sendGradedEmail({ toEmail: s.email, toName: s.fullName, courseTitle: course.title, score: `${combinedScore}/${combinedTotal}`, grade });
+      const justCrossedPassing = percent >= 50 && (r.percent === undefined || r.percent < 50);
+      if (justCrossedPassing) {
+        sendCertificateReadyEmail({ toEmail: s.email, toName: s.fullName, courseTitle: course.title });
+      }
+    }).catch((e) => console.warn("Couldn't look up student for grading email:", e));
+
     toast("Grades saved", "success");
     renderGrading();
   };

@@ -15,6 +15,8 @@ import { openDrivePicker, makeFilePublic, verifyPublicAccess, driveFileViewUrl, 
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth as getAuthSecondary, createUserWithEmailAndPassword, signOut as signOutSecondary } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initNotifications } from "./notifications.js";
+import { initSessionTimeout } from "./session-timeout.js";
+import { sendAccountCreatedEmail, sendAnnouncementEmail } from "./email-notify.js";
 
 initTheme();
 registerServiceWorker();
@@ -40,6 +42,7 @@ guardRoute("admin").then(async (u) => {
   user = u;
   await seedCourses(db, collection, doc, setDoc, getDocs, COL);
   initNotifications({ role: "admin", uid: u.uid });
+  initSessionTimeout();
   bindSidebar();
   renderOverview();
 });
@@ -218,6 +221,7 @@ async function renderTeachers() {
       for (const cid of courseIds) await updateDoc(doc(db, COL.courses, cid), { teacherId: cred.user.uid });
       await signOutSecondary(sAuth);
       await logActivity(user.uid, "admin", "create_teacher", teacherId);
+      sendAccountCreatedEmail({ toEmail: email, toName: name, role: "Teacher", loginId: teacherId, passcode });
       showCredentialsModal("Teacher", name, teacherId, passcode);
       e.target.reset();
       loadTeacherTable();
@@ -320,6 +324,7 @@ async function renderStudents() {
       });
       await signOutSecondary(sAuth);
       await logActivity(user.uid, "admin", "create_student", studentId);
+      sendAccountCreatedEmail({ toEmail: email, toName: name, role: "Student", loginId: studentId, passcode });
       showCredentialsModal("Student", name, studentId, passcode);
       e.target.reset();
       loadStudentTable();
@@ -459,13 +464,17 @@ async function renderBulkImport() {
           return `<tr><td>${escapeAdminHtml(r.fullName)}</td><td>${escapeAdminHtml(r.email)}</td><td>${escapeAdminHtml(r.courseCodes)}</td><td>${escapeAdminHtml(status)}</td></tr>`;
         }).join("")}</tbody>
       </table>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.88rem;">
+        <input type="checkbox" id="bulk-email-opt-in"> Also email each new account their login ID and passcode
+        <span style="color:var(--muted);">(uses your free EmailJS quota — 200/month total, so be mindful with large batches)</span>
+      </label>
       <button class="btn-gold" id="bulk-create-btn" type="button" style="margin-top:12px;"><i class="fa-solid fa-users"></i> Create All Ready Rows</button>`;
 
-    document.getElementById("bulk-create-btn").onclick = () => runBulkImport(rows, courseByCode, document.getElementById("bulk-role").value);
+    document.getElementById("bulk-create-btn").onclick = () => runBulkImport(rows, courseByCode, document.getElementById("bulk-role").value, document.getElementById("bulk-email-opt-in").checked);
   };
 }
 
-async function runBulkImport(rows, courseByCode, role) {
+async function runBulkImport(rows, courseByCode, role, sendEmails) {
   const resultsWrap = document.getElementById("bulk-results-wrap");
   resultsWrap.innerHTML = `<div class="glass-card"><p>Creating accounts… <span id="bulk-progress">0</span> / ${rows.length}</p></div>`;
   const progressEl = document.getElementById("bulk-progress");
@@ -496,6 +505,7 @@ async function runBulkImport(rows, courseByCode, role) {
       }
       await signOutSecondary(sAuth);
       await logActivity(user.uid, "admin", `bulk_create_${role}`, id);
+      if (sendEmails) sendAccountCreatedEmail({ toEmail: r.email, toName: r.fullName, role: role === "teacher" ? "Teacher" : "Student", loginId: id, passcode });
       results.push({ ...r, id, passcode, status: "Created" });
     } catch (err) {
       results.push({ ...r, status: `Failed — ${err.message}` });
@@ -1000,20 +1010,35 @@ async function renderAnnouncements() {
       <form id="ann-form">
         <div class="form-field"><label>Title</label><input required id="a-title" type="text"></div>
         <div class="form-field"><label>Message</label><textarea required id="a-message" rows="3"></textarea></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:.88rem;">
+          <input type="checkbox" id="a-email-opt-in"> Also email this to everyone
+          <span style="color:var(--muted);">(uses your free EmailJS quota — 200/month total, capped at 150 recipients per send)</span>
+        </label>
         <button class="btn-gold" type="submit"><i class="fa-solid fa-paper-plane"></i> Publish to Everyone</button>
       </form>
     </div>
     <div class="glass-card" style="margin-top:20px;"><div id="ann-list">Loading…</div></div>`;
   document.getElementById("ann-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const title = document.getElementById("a-title").value;
+    const body = document.getElementById("a-message").value;
+    const emailOptIn = document.getElementById("a-email-opt-in").checked;
     await addDoc(collection(db, COL.notifications), {
-      title: document.getElementById("a-title").value,
-      body: document.getElementById("a-message").value,
-      audience: "all", createdAt: serverTimestamp()
+      title, body, audience: "all", createdAt: serverTimestamp()
     });
     toast("Announcement published", "success");
     e.target.reset();
     loadAnnouncements();
+
+    if (emailOptIn) {
+      const [studentsSnap, teachersSnap] = await Promise.all([getDocs(collection(db, COL.students)), getDocs(collection(db, COL.teachers))]);
+      const emails = [];
+      studentsSnap.forEach(d => { if (d.data().email) emails.push(d.data().email); });
+      teachersSnap.forEach(d => { if (d.data().email) emails.push(d.data().email); });
+      const capped = emails.slice(0, 150);
+      for (const toEmail of capped) await sendAnnouncementEmail({ toEmail, title, body });
+      toast(`Emailed ${capped.length} of ${emails.length} recipient(s)${emails.length > capped.length ? " (capped at 150 to protect your free quota)" : ""}.`, "success");
+    }
   });
   loadAnnouncements();
 }

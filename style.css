@@ -269,3 +269,22 @@ mark.hl{background:var(--gold-light);padding:1px 2px;border-radius:3px;}
 .calendar-cell.today{background:var(--gold-light);font-weight:700;}
 .calendar-cell.has-events{border:2px solid var(--navy);}
 .calendar-dot{position:absolute;bottom:4px;width:6px;height:6px;border-radius:50%;background:var(--danger);}
+
+/* ---------- Session Timeout Warning ---------- */
+#session-timeout-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.session-timeout-card{
+  background:var(--white);color:var(--text);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:28px;max-width:360px;text-align:center;
+}
+.session-timeout-card h3{margin:10px 0 6px;}
+[data-theme="dark"] .session-timeout-card{background:#101a2c;}
+
+/* ---------- Consistent Loading / Empty States ---------- */
+.ui-loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 20px;color:var(--muted);gap:10px;}
+.ui-spinner{width:28px;height:28px;border-radius:50%;border:3px solid #e5e9f2;border-top-color:var(--gold);animation:ui-spin .8s linear infinite;}
+@keyframes ui-spin{to{transform:rotate(360deg);}}
+.ui-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 20px;color:var(--muted);gap:8px;text-align:center;}
+.ui-empty-state i{font-size:1.8rem;opacity:.5;}

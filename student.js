@@ -14,6 +14,7 @@ import { renderDictionary } from "./dictionary.js";
 import { initNotifications } from "./notifications.js";
 import { renderStudentAssignments, renderUpcomingDeadlines } from "./assignments.js";
 import { renderCalendarView } from "./calendar.js";
+import { initSessionTimeout } from "./session-timeout.js";
 import { handleCheckinFromUrl } from "./attendance-checkin.js";
 
 initTheme();
@@ -40,6 +41,7 @@ guardRoute("student").then(async (u) => {
 
   initNotifications({ role: "student", uid: u.uid, courseId: course?.id });
   handleCheckinFromUrl({ uid: u.uid, studentId: profile.studentId || u.uid, myCourseIds: courseIds });
+  initSessionTimeout();
 
   bindSidebar();
   renderOverview();

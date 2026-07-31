@@ -16,6 +16,7 @@ import {
 } from "./firebase-config.js";
 import { toast } from "./app-shell.js";
 import { openDrivePicker, makeFilePublic, verifyPublicAccess, driveFileViewUrl } from "./drive-config.js";
+import { loadingHtml, emptyStateHtml } from "./ui-states.js";
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -50,7 +51,7 @@ export async function renderTeacherAssignments(container, { course, user }) {
         <div class="col-12"><button class="btn-gold" type="submit"><i class="fa-solid fa-paper-plane"></i> Post Assignment</button></div>
       </form>
     </div>
-    <div id="asg-teacher-list">Loading…</div>`;
+    <div id="asg-teacher-list">${loadingHtml("Loading assignments…")}</div>`;
 
   document.getElementById("asg-create-form").onsubmit = async (e) => {
     e.preventDefault();
@@ -73,9 +74,9 @@ export async function renderTeacherAssignments(container, { course, user }) {
 async function loadTeacherAssignmentList(courseId) {
   const wrap = document.getElementById("asg-teacher-list");
   if (!wrap) return;
-  wrap.innerHTML = "Loading…";
+  wrap.innerHTML = loadingHtml("Loading assignments…");
   const snap = await getDocs(query(collection(db, "assignments"), where("courseId", "==", courseId)));
-  if (snap.empty) { wrap.innerHTML = "<p style='color:var(--muted);'>No assignments posted for this course yet.</p>"; return; }
+  if (snap.empty) { wrap.innerHTML = emptyStateHtml("No assignments posted for this course yet.", "fa-file-pen"); return; }
 
   const assignments = [];
   snap.forEach(d => assignments.push({ id: d.id, ...d.data() }));
@@ -108,9 +109,9 @@ async function loadTeacherAssignmentList(courseId) {
 }
 
 async function loadSubmissionsForAssignment(assignmentId, dueDate, panel) {
-  panel.innerHTML = "Loading submissions…";
+  panel.innerHTML = loadingHtml("Loading submissions…");
   const snap = await getDocs(query(collection(db, "assignmentSubmissions"), where("assignmentId", "==", assignmentId)));
-  if (snap.empty) { panel.innerHTML = "<p style='color:var(--muted);'>No submissions yet.</p>"; return; }
+  if (snap.empty) { panel.innerHTML = emptyStateHtml("No submissions yet.", "fa-inbox"); return; }
   const subs = [];
   snap.forEach(d => subs.push({ id: d.id, ...d.data() }));
   panel.innerHTML = subs.map(s => `
@@ -227,10 +228,10 @@ function submitControlsHtml(assignmentId, isReplace) {
 }
 
 export async function renderStudentAssignments(container, { course, user, profile }) {
-  container.innerHTML = `<div id="asg-student-list">Loading…</div>`;
+  container.innerHTML = `<div id="asg-student-list">${loadingHtml("Loading assignments…")}</div>`;
   const wrap = document.getElementById("asg-student-list");
   const snap = await getDocs(query(collection(db, "assignments"), where("courseId", "==", course.id)));
-  if (snap.empty) { wrap.innerHTML = "<p style='color:var(--muted);'>No assignments posted for this course yet.</p>"; return; }
+  if (snap.empty) { wrap.innerHTML = emptyStateHtml("No assignments posted for this course yet.", "fa-file-pen"); return; }
 
   const assignments = [];
   snap.forEach(d => assignments.push({ id: d.id, ...d.data() }));
