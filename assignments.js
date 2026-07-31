@@ -21,6 +21,22 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+/** End-of-day Date object for a "YYYY-MM-DD" due date string. */
+function dueDateEnd(dueDateStr) {
+  if (!dueDateStr) return null;
+  return new Date(`${dueDateStr}T23:59:59`);
+}
+function isPastDue(dueDateStr) {
+  const end = dueDateEnd(dueDateStr);
+  return !!end && Date.now() > end.getTime();
+}
+/** Was this submission made after the assignment's due date? */
+function isSubmissionLate(dueDateStr, submittedAt) {
+  const end = dueDateEnd(dueDateStr);
+  if (!end || !submittedAt?.toDate) return false;
+  return submittedAt.toDate().getTime() > end.getTime();
+}
+
 /* ============================== TEACHER ============================== */
 export async function renderTeacherAssignments(container, { course, user }) {
   container.innerHTML = `
@@ -30,6 +46,7 @@ export async function renderTeacherAssignments(container, { course, user }) {
         <div class="col-md-6 form-field"><label>Title</label><input required id="asg-title" type="text"></div>
         <div class="col-md-6 form-field"><label>Due Date</label><input required id="asg-due" type="date"></div>
         <div class="col-12 form-field"><label>Instructions</label><textarea id="asg-desc" rows="2"></textarea></div>
+        <div class="col-12 form-field"><label><input type="checkbox" id="asg-lock"> Lock submissions once the due date passes (students who haven't submitted yet won't be able to)</label></div>
         <div class="col-12"><button class="btn-gold" type="submit"><i class="fa-solid fa-paper-plane"></i> Post Assignment</button></div>
       </form>
     </div>
@@ -40,9 +57,10 @@ export async function renderTeacherAssignments(container, { course, user }) {
     const title = document.getElementById("asg-title").value.trim();
     const dueDate = document.getElementById("asg-due").value;
     const description = document.getElementById("asg-desc").value.trim();
+    const lockAfterDue = document.getElementById("asg-lock").checked;
     if (!title || !dueDate) return;
     await addDoc(collection(db, "assignments"), {
-      courseId: course.id, teacherId: user.uid, title, description, dueDate, createdAt: serverTimestamp()
+      courseId: course.id, teacherId: user.uid, title, description, dueDate, lockAfterDue, createdAt: serverTimestamp()
     });
     toast("Assignment posted.", "success");
     e.target.reset();
@@ -68,9 +86,11 @@ async function loadTeacherAssignmentList(courseId) {
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>
           <strong>${escapeHtml(a.title)}</strong>
-          <div style="color:var(--muted);font-size:.85rem;">Due ${escapeHtml(a.dueDate || "—")}</div>
+          <div style="color:var(--muted);font-size:.85rem;">Due ${escapeHtml(a.dueDate || "—")}
+            ${a.lockAfterDue ? (isPastDue(a.dueDate) ? ' <span class="badge inactive">Locked — past due</span>' : ' <span class="badge active">Locks at due date</span>') : ""}
+          </div>
         </div>
-        <button class="btn-outline" data-asg="${a.id}" type="button"><i class="fa-solid fa-eye"></i> View Submissions</button>
+        <button class="btn-outline" data-asg="${a.id}" data-due="${escapeHtml(a.dueDate || "")}" type="button"><i class="fa-solid fa-eye"></i> View Submissions</button>
       </div>
       <p style="margin:10px 0 0;">${escapeHtml(a.description || "")}</p>
       <div id="asg-subs-${a.id}" style="display:none;margin-top:12px;border-top:1px solid #eef1f7;padding-top:12px;"></div>
@@ -82,12 +102,12 @@ async function loadTeacherAssignmentList(courseId) {
       const panel = document.getElementById(`asg-subs-${id}`);
       const showing = panel.style.display !== "none";
       panel.style.display = showing ? "none" : "block";
-      if (!showing) await loadSubmissionsForAssignment(id, panel);
+      if (!showing) await loadSubmissionsForAssignment(id, btn.dataset.due, panel);
     };
   });
 }
 
-async function loadSubmissionsForAssignment(assignmentId, panel) {
+async function loadSubmissionsForAssignment(assignmentId, dueDate, panel) {
   panel.innerHTML = "Loading submissions…";
   const snap = await getDocs(query(collection(db, "assignmentSubmissions"), where("assignmentId", "==", assignmentId)));
   if (snap.empty) { panel.innerHTML = "<p style='color:var(--muted);'>No submissions yet.</p>"; return; }
@@ -101,6 +121,7 @@ async function loadSubmissionsForAssignment(assignmentId, panel) {
           <span style="color:var(--muted);font-size:.82rem;"> — ${escapeHtml(s.fileName || "file")}</span>
           ${s.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}
           ${s.method === "drive_picker" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive file</span>' : ""}
+          ${isSubmissionLate(dueDate, s.submittedAt) ? ' <span class="badge inactive">Late</span>' : ""}
         </div>
         <a class="btn-outline" href="${s.fileUrl}" target="_blank" rel="noopener">${s.method === "drive_link" || s.method === "drive_picker" ? '<i class="fa-solid fa-arrow-up-right-from-square"></i> Open' : '<i class="fa-solid fa-download"></i> Download'}</a>
       </div>
@@ -122,6 +143,63 @@ async function loadSubmissionsForAssignment(assignmentId, panel) {
       toast("Saved.", "success");
     };
   });
+}
+
+/* ============================== DEADLINE REMINDERS ============================== */
+/**
+ * Renders a compact "Upcoming Deadlines" widget on the Overview page, and —
+ * for students — fires a once-per-day toast reminder if something they
+ * haven't submitted yet is due within 24 hours. Entirely client-side:
+ * recomputed fresh from Firestore data you already have each time Overview
+ * loads. There's no backend job running in the background — this is an
+ * honest, free alternative to a true scheduled push reminder, which would
+ * require a paid Cloud Functions plan (see earlier discussion on push
+ * notifications).
+ */
+export async function renderUpcomingDeadlines(container, { course, user, role }) {
+  if (!container) return;
+  if (!course) { container.innerHTML = ""; return; }
+  const snap = await getDocs(query(collection(db, "assignments"), where("courseId", "==", course.id)));
+  if (snap.empty) { container.innerHTML = ""; return; }
+
+  const now = Date.now();
+  const items = [];
+  for (const d of snap.docs) {
+    const a = { id: d.id, ...d.data() };
+    const end = dueDateEnd(a.dueDate);
+    if (!end) continue;
+    const daysLeft = Math.ceil((end.getTime() - now) / 86400000);
+    if (role === "student") {
+      const subSnap = await getDoc(doc(db, "assignmentSubmissions", `${a.id}_${user.uid}`));
+      if (subSnap.exists()) continue; // already submitted, no reminder needed
+      if (daysLeft <= 3) items.push({ ...a, daysLeft });
+    } else if (daysLeft >= 0 && daysLeft <= 7) {
+      items.push({ ...a, daysLeft });
+    }
+  }
+  if (!items.length) { container.innerHTML = ""; return; }
+  items.sort((a, b) => a.daysLeft - b.daysLeft);
+
+  container.innerHTML = `
+    <div class="glass-card" style="margin-top:16px;">
+      <h4><i class="fa-solid fa-clock"></i> Upcoming Deadlines</h4>
+      ${items.map(a => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eef1f7;">
+          <span>${escapeHtml(a.title)}</span>
+          <span class="badge ${a.daysLeft < 0 ? "inactive" : "active"}">${a.daysLeft < 0 ? "Overdue" : a.daysLeft === 0 ? "Due today" : `Due in ${a.daysLeft}d`}</span>
+        </div>`).join("")}
+    </div>`;
+
+  if (role === "student") {
+    const urgent = items.find(a => a.daysLeft <= 1);
+    if (urgent) {
+      const key = `cacgw_reminder_${user.uid}_${new Date().toISOString().slice(0, 10)}`;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        toast(`Reminder: "${urgent.title}" is ${urgent.daysLeft <= 0 ? "due today" : "due tomorrow"}.`, "info");
+      }
+    }
+  }
 }
 
 /* ============================== STUDENT ============================== */
@@ -163,22 +241,28 @@ export async function renderStudentAssignments(container, { course, user, profil
     const subId = `${a.id}_${user.uid}`;
     const subSnap = await getDoc(doc(db, "assignmentSubmissions", subId));
     const sub = subSnap.exists() ? subSnap.data() : null;
+    const locked = !!a.lockAfterDue && isPastDue(a.dueDate);
+    const late = sub && isSubmissionLate(a.dueDate, sub.submittedAt);
 
     const card = document.createElement("div");
     card.className = "glass-card";
     card.style.marginBottom = "12px";
     card.innerHTML = `
       <strong>${escapeHtml(a.title)}</strong>
-      <div style="color:var(--muted);font-size:.85rem;">Due ${escapeHtml(a.dueDate || "—")}</div>
+      <div style="color:var(--muted);font-size:.85rem;">Due ${escapeHtml(a.dueDate || "—")}${locked ? ' <span class="badge inactive">Submissions closed</span>' : ""}</div>
       <p style="margin:10px 0;">${escapeHtml(a.description || "")}</p>
       ${sub
         ? `<div style="background:var(--bg);border-radius:10px;padding:10px 14px;">
-             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a>${sub.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}${sub.method === "drive_picker" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive file</span>' : ""}
+             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a>${sub.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}${sub.method === "drive_picker" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive file</span>' : ""}${late ? ' <span class="badge inactive">Late</span>' : ""}
              ${sub.grade ? `<div style="margin-top:6px;"><strong>Grade:</strong> ${escapeHtml(sub.grade)}</div>` : ""}
              ${sub.feedback ? `<div><strong>Feedback:</strong> ${escapeHtml(sub.feedback)}</div>` : ""}
-             <div style="margin-top:8px;">${submitControlsHtml(a.id, true)}</div>
+             ${locked
+               ? `<p style="color:var(--muted);font-size:.82rem;margin-top:8px;">This assignment locked at the due date — you can't replace your submission.</p>`
+               : `<div style="margin-top:8px;">${submitControlsHtml(a.id, true)}</div>`}
            </div>`
-        : `<div>${submitControlsHtml(a.id, false)}</div>`}`;
+        : locked
+          ? `<div class="glass-card" style="background:var(--bg);"><i class="fa-solid fa-lock"></i> Submissions closed — the due date has passed and this assignment doesn't accept late work.</div>`
+          : `<div>${submitControlsHtml(a.id, false)}</div>`}`;
     wrap.appendChild(card);
   }
 

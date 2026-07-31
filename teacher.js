@@ -12,7 +12,8 @@ import { openDrivePicker, makeFilePublic, verifyPublicAccess, driveFileViewUrl, 
 import { renderWhiteboard, stopWhiteboard } from "./whiteboard.js";
 import { isWebGPUSupported, isModelLoaded, loadModel, sendMessage, resetConversation, getHistory, getWebGPUWarning } from "./ai-assistant.js";
 import { initNotifications } from "./notifications.js";
-import { renderTeacherAssignments } from "./assignments.js";
+import { renderTeacherAssignments, renderUpcomingDeadlines } from "./assignments.js";
+import { renderCalendarView } from "./calendar.js";
 import { renderQrCheckinPanel, stopQrCheckin } from "./attendance-checkin.js";
 
 initTheme();
@@ -61,7 +62,7 @@ function views() {
     overview: renderOverview, materials: renderMaterials, studio: renderStudio,
     live: renderLive, attendance: renderAttendance, examQuestions: renderExamQuestions,
     grading: renderGrading, progress: renderProgress, questions: renderQuestions, feedback: renderFeedback,
-    whiteboard: renderWhiteboardView, ai: renderAI, assignments: renderAssignmentsView
+    whiteboard: renderWhiteboardView, ai: renderAI, assignments: renderAssignmentsView, calendar: renderCalendarPage
   };
 }
 
@@ -218,7 +219,9 @@ function renderOverview() {
       <h4>Quick Actions</h4>
       <button class="btn-navy" onclick="document.querySelector('[data-view=materials]').click()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Material</button>
       <button class="btn-gold" onclick="document.querySelector('[data-view=studio]').click()"><i class="fa-solid fa-video"></i> Open Studio</button>
-    </div>`;
+    </div>
+    <div id="asg-deadlines-host"></div>`;
+  if (course) renderUpcomingDeadlines(document.getElementById("asg-deadlines-host"), { course, user, role: "teacher" });
 }
 
 /* ---------- Upload materials (ebook, handbook, syllabus, assignment) ---------- */
@@ -785,6 +788,15 @@ function renderAssignmentsView() {
   main.innerHTML = `<h2><i class="fa-solid fa-upload"></i> Assignments — ${course.title}</h2>${courseSwitcherHTML()}<div id="asg-host"></div>`;
   bindCourseSwitcher();
   renderTeacherAssignments(document.getElementById("asg-host"), { course, user });
+}
+
+/* ---------- Calendar (free, shows assignment due dates for this course) ---------- */
+function renderCalendarPage() {
+  currentView = "calendar";
+  if (!course) { main.innerHTML = "<p>No course assigned yet.</p>"; return; }
+  main.innerHTML = `<h2><i class="fa-solid fa-calendar-days"></i> Calendar — ${course.title}</h2>${courseSwitcherHTML()}<div id="cal-host"></div>`;
+  bindCourseSwitcher();
+  renderCalendarView(document.getElementById("cal-host"), { course, role: "teacher" });
 }
 
 /* ---------- Student Questions ---------- */

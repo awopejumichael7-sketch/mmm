@@ -12,7 +12,8 @@ import { renderWhiteboard, stopWhiteboard } from "./whiteboard.js";
 import { renderCalculator } from "./calculator.js";
 import { renderDictionary } from "./dictionary.js";
 import { initNotifications } from "./notifications.js";
-import { renderStudentAssignments } from "./assignments.js";
+import { renderStudentAssignments, renderUpcomingDeadlines } from "./assignments.js";
+import { renderCalendarView } from "./calendar.js";
 import { handleCheckinFromUrl } from "./attendance-checkin.js";
 
 initTheme();
@@ -66,7 +67,7 @@ function views() {
     exams: renderExams, certificates: renderCertificates,
     questions: renderQuestions, feedback: renderFeedback,
     whiteboard: renderWhiteboardView, calculator: renderCalculatorView, dictionary: renderDictionaryView,
-    assignments: renderAssignmentsView
+    assignments: renderAssignmentsView, calendar: renderCalendarPage
   };
 }
 
@@ -98,6 +99,15 @@ function renderAssignmentsView() {
   main.innerHTML = `<h2><i class="fa-solid fa-upload"></i> Assignments — ${course.title}</h2>` + courseSwitcherHTML() + `<div id="asg-host"></div>`;
   bindCourseSwitcher();
   renderStudentAssignments(document.getElementById("asg-host"), { course, user, profile });
+}
+
+/* ---------- Calendar (free, shows assignment due dates for this course) ---------- */
+function renderCalendarPage() {
+  currentView = "calendar";
+  if (!course) { main.innerHTML = "<p>No course assigned yet.</p>"; return; }
+  main.innerHTML = `<h2><i class="fa-solid fa-calendar-days"></i> Calendar — ${course.title}</h2>` + courseSwitcherHTML() + `<div id="cal-host"></div>`;
+  bindCourseSwitcher();
+  renderCalendarView(document.getElementById("cal-host"), { course, role: "student" });
 }
 
 /* ---------- Course switcher — shown at the top of every course-specific view ---------- */
@@ -154,7 +164,9 @@ function renderOverview() {
       <h4>Quick Links</h4>
       <button class="btn-navy" onclick="document.querySelector('[data-view=library]').click()"><i class="fa-solid fa-book-open"></i> Open Library</button>
       <button class="btn-gold" onclick="document.querySelector('[data-view=exams]').click()"><i class="fa-solid fa-file-pen"></i> View Exams</button>
-    </div>`;
+    </div>
+    <div id="asg-deadlines-host"></div>`;
+  if (course) renderUpcomingDeadlines(document.getElementById("asg-deadlines-host"), { course, user, role: "student" });
 }
 
 /* ---------- Library: ebook / handbook / syllabus ---------- */

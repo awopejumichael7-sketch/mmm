@@ -54,7 +54,7 @@ function bindSidebar() {
         overview: renderOverview, teachers: renderTeachers, students: renderStudents,
         courses: renderCourses, content: renderContent, exams: renderExams,
         announcements: renderAnnouncements, feedback: renderFeedback,
-        reports: renderReports, logs: renderLogs
+        reports: renderReports, logs: renderLogs, bulkImport: renderBulkImport
       })[view]();
     });
   });
@@ -365,6 +365,163 @@ async function loadStudentTable() {
     await deleteDoc(doc(db, COL.students, b.dataset.id));
     toast("Student deleted", "success"); loadStudentTable();
   });
+}
+
+/* ==========================================================================
+   BULK IMPORT — free CSV import for Students or Teachers.
+   Reuses the exact same account-creation logic as the single-add forms
+   above (generateId, generatePasscode, secondaryAuth, createUserWithEmail-
+   AndPassword) — just looped over many rows instead of one submit.
+   ========================================================================== */
+function escapeAdminHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/** Tiny CSV parser — handles quoted fields containing commas. */
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  if (!lines.length) return [];
+  const parseLine = (line) => {
+    const cells = []; let cur = ""; let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuotes) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') { inQuotes = false; }
+        else cur += c;
+      } else if (c === '"') { inQuotes = true; }
+      else if (c === ",") { cells.push(cur); cur = ""; }
+      else cur += c;
+    }
+    cells.push(cur);
+    return cells.map(c => c.trim());
+  };
+  const header = parseLine(lines[0]).map(h => h.toLowerCase());
+  const nameIdx = header.findIndex(h => h.includes("name"));
+  const emailIdx = header.findIndex(h => h.includes("email"));
+  const courseIdx = header.findIndex(h => h.includes("course"));
+  return lines.slice(1).map(line => {
+    const cells = parseLine(line);
+    return { fullName: cells[nameIdx] || "", email: cells[emailIdx] || "", courseCodes: cells[courseIdx] || "" };
+  });
+}
+
+async function renderBulkImport() {
+  main.innerHTML = `<div class="skeleton" style="height:220px;"></div>`;
+  const coursesSnap = await getDocs(collection(db, COL.courses));
+  const courseByCode = {};
+  coursesSnap.forEach(d => { courseByCode[(d.data().code || "").toUpperCase()] = d.id; });
+  const courseListHtml = coursesSnap.docs.map(d => `<code>${escapeAdminHtml(d.data().code)}</code> — ${escapeAdminHtml(d.data().title)}`).join("<br>");
+
+  main.innerHTML = `
+    <h2><i class="fa-solid fa-file-csv"></i> Bulk Import</h2>
+    <div class="glass-card" style="margin-bottom:20px;">
+      <h4>Import Students or Teachers from a CSV file</h4>
+      <p style="color:var(--muted);font-size:.88rem;">
+        CSV columns: <strong>Full Name, Email, Course Codes</strong> — separate multiple course codes for one person with a semicolon (e.g. <code>BIB101;THE201</code>).<br>
+        Available course codes:<br>${courseListHtml || "No courses set up yet — create one first under Courses."}
+      </p>
+      <div class="row g-2">
+        <div class="col-md-4 form-field">
+          <label>Create as</label>
+          <select id="bulk-role" class="form-select">
+            <option value="student">Students</option>
+            <option value="teacher">Teachers</option>
+          </select>
+        </div>
+        <div class="col-md-8 form-field">
+          <label>CSV File</label>
+          <input type="file" id="bulk-file" accept=".csv">
+        </div>
+      </div>
+      <button class="btn-outline" id="bulk-preview-btn" type="button"><i class="fa-solid fa-eye"></i> Preview</button>
+      <div id="bulk-preview-wrap" style="margin-top:14px;"></div>
+    </div>
+    <div id="bulk-results-wrap"></div>`;
+
+  document.getElementById("bulk-preview-btn").onclick = async () => {
+    const file = document.getElementById("bulk-file").files?.[0];
+    if (!file) { toast("Choose a CSV file first.", "error"); return; }
+    const rows = parseCsv(await file.text());
+    if (!rows.length) { toast("No rows found in that CSV.", "error"); return; }
+
+    const previewWrap = document.getElementById("bulk-preview-wrap");
+    previewWrap.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Full Name</th><th>Email</th><th>Course Codes</th><th>Status</th></tr></thead>
+        <tbody>${rows.map(r => {
+          const codes = (r.courseCodes || "").split(";").map(c => c.trim().toUpperCase()).filter(Boolean);
+          const unknown = codes.filter(c => !courseByCode[c]);
+          const status = !r.fullName || !r.email ? "Missing name/email"
+            : !codes.length ? "No course codes"
+            : unknown.length ? `Unknown code: ${unknown.join(", ")}`
+            : "Ready";
+          return `<tr><td>${escapeAdminHtml(r.fullName)}</td><td>${escapeAdminHtml(r.email)}</td><td>${escapeAdminHtml(r.courseCodes)}</td><td>${escapeAdminHtml(status)}</td></tr>`;
+        }).join("")}</tbody>
+      </table>
+      <button class="btn-gold" id="bulk-create-btn" type="button" style="margin-top:12px;"><i class="fa-solid fa-users"></i> Create All Ready Rows</button>`;
+
+    document.getElementById("bulk-create-btn").onclick = () => runBulkImport(rows, courseByCode, document.getElementById("bulk-role").value);
+  };
+}
+
+async function runBulkImport(rows, courseByCode, role) {
+  const resultsWrap = document.getElementById("bulk-results-wrap");
+  resultsWrap.innerHTML = `<div class="glass-card"><p>Creating accounts… <span id="bulk-progress">0</span> / ${rows.length}</p></div>`;
+  const progressEl = document.getElementById("bulk-progress");
+  const results = [];
+
+  for (const r of rows) {
+    const codes = (r.courseCodes || "").split(";").map(c => c.trim().toUpperCase()).filter(Boolean);
+    const courseIds = codes.map(c => courseByCode[c]).filter(Boolean);
+    if (!r.fullName || !r.email || !courseIds.length) {
+      results.push({ ...r, status: "Skipped — missing or invalid data" });
+      progressEl.textContent = results.length;
+      continue;
+    }
+    try {
+      const id = generateId(role === "teacher" ? "TCH" : "STU");
+      const passcode = generatePasscode();
+      const sAuth = secondaryAuth();
+      const cred = await createUserWithEmailAndPassword(sAuth, `${id.toLowerCase()}@cacgw.app`, passcode);
+      const col = role === "teacher" ? COL.teachers : COL.students;
+      const idField = role === "teacher" ? "teacherId" : "studentId";
+      const extra = role === "student" ? { progress: {} } : {};
+      await setDoc(doc(db, col, cred.user.uid), {
+        fullName: r.fullName, email: r.email, [idField]: id,
+        courseIds, active: true, createdAt: serverTimestamp(), ...extra
+      });
+      if (role === "teacher") {
+        for (const cid of courseIds) await updateDoc(doc(db, COL.courses, cid), { teacherId: cred.user.uid });
+      }
+      await signOutSecondary(sAuth);
+      await logActivity(user.uid, "admin", `bulk_create_${role}`, id);
+      results.push({ ...r, id, passcode, status: "Created" });
+    } catch (err) {
+      results.push({ ...r, status: `Failed — ${err.message}` });
+    }
+    progressEl.textContent = results.length;
+  }
+
+  const successCount = results.filter(r => r.status === "Created").length;
+  resultsWrap.innerHTML = `
+    <div class="glass-card">
+      <h4>Import Complete — ${successCount} of ${rows.length} account(s) created</h4>
+      <table class="data-table">
+        <thead><tr><th>Full Name</th><th>Email</th><th>ID</th><th>Passcode</th><th>Status</th></tr></thead>
+        <tbody>${results.map(r => `<tr><td>${escapeAdminHtml(r.fullName || "")}</td><td>${escapeAdminHtml(r.email || "")}</td><td>${r.id || "—"}</td><td>${r.passcode || "—"}</td><td>${escapeAdminHtml(r.status)}</td></tr>`).join("")}</tbody>
+      </table>
+      <button class="btn-outline" id="bulk-download-btn" type="button" style="margin-top:12px;"><i class="fa-solid fa-download"></i> Download Credentials CSV</button>
+    </div>`;
+
+  document.getElementById("bulk-download-btn").onclick = () => {
+    let csv = "Full Name,Email,ID,Passcode,Status\n";
+    results.forEach(r => { csv += `"${(r.fullName || "").replace(/"/g, '""')}","${(r.email || "").replace(/"/g, '""')}",${r.id || ""},${r.passcode || ""},"${r.status}"\n`; });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "bulk-import-credentials.csv"; a.click();
+  };
+
+  toast(`${successCount} account(s) created.`, "success");
 }
 
 /* ---------- View a student's per-course progress: attendance, exam result,

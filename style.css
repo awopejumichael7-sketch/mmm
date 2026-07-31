@@ -238,8 +238,34 @@ mark.hl{background:var(--gold-light);padding:1px 2px;border-radius:3px;}
 .calc-btn-func{background:var(--danger);color:#fff;}
 .calc-btn-eq{background:linear-gradient(120deg,var(--gold),var(--gold-light));color:var(--navy);grid-column:span 2;}
 
-/* ---------- AI Assistant ---------- */
-.ai-chat-log{max-height:420px;overflow-y:auto;padding:4px;}
-.ai-msg{padding:10px 14px;border-radius:12px;margin-bottom:8px;line-height:1.5;font-size:.92rem;}
-.ai-msg-user{background:var(--bg);}
-.ai-msg-assistant{background:var(--gold-light);color:#1b2430;}
+/* ---------- Notifications ---------- */
+.notif-badge{
+  position:absolute;top:-2px;right:-2px;background:var(--danger);color:#fff;
+  border-radius:999px;font-size:.65rem;padding:1px 5px;font-weight:700;
+  min-width:16px;text-align:center;line-height:1.3;pointer-events:none;
+}
+.notif-panel{
+  position:absolute;top:48px;right:0;width:320px;max-height:420px;overflow-y:auto;
+  background:var(--white);color:var(--text);border-radius:var(--radius);
+  box-shadow:var(--shadow);z-index:80;text-align:left;
+}
+[data-theme="dark"] .notif-panel{background:#101a2c;}
+.notif-panel-head{display:flex;justify-content:space-between;align-items:center;padding:14px;border-bottom:1px solid #eef1f7;}
+.notif-mark-read{background:none;border:none;color:var(--gold);cursor:pointer;font-size:.78rem;font-weight:600;}
+.notif-permission-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;background:var(--bg);font-size:.78rem;}
+.notif-panel-list .notif-item{padding:12px 14px;border-bottom:1px solid #eef1f7;}
+.notif-panel-list .notif-item strong{display:block;margin-bottom:2px;}
+.notif-panel-list .notif-item p{margin:0 0 4px;font-size:.88rem;}
+.notif-panel-list .notif-item small{color:var(--muted);}
+
+/* ---------- Calendar ---------- */
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.calendar-dow{text-align:center;font-weight:700;font-size:.78rem;color:var(--muted);padding:4px 0;}
+.calendar-cell{
+  position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;background:var(--bg);font-size:.85rem;
+}
+.calendar-cell.empty{background:transparent;}
+.calendar-cell.today{background:var(--gold-light);font-weight:700;}
+.calendar-cell.has-events{border:2px solid var(--navy);}
+.calendar-dot{position:absolute;bottom:4px;width:6px;height:6px;border-radius:50%;background:var(--danger);}
