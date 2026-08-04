@@ -29,11 +29,11 @@
 */
 
 const CONFIG = {
-  publicKey: "YOUR_EMAILJS_PUBLIC_KEY",
-  serviceId: "YOUR_EMAILJS_SERVICE_ID",
+  publicKey: "YuHs0_rbwcqwr2d6N",
+  serviceId: "service_v95b01b",
   templates: {
-    accountCreated: "YOUR_TEMPLATE_ID_ACCOUNT_CREATED",
-    announcement: "YOUR_TEMPLATE_ID_ANNOUNCEMENT",
+    accountCreated: "template_0kxdmuu",
+    announcement: "template_fa8879a",
     graded: "YOUR_TEMPLATE_ID_GRADED",
     certificateReady: "YOUR_TEMPLATE_ID_CERTIFICATE_READY"
   }
