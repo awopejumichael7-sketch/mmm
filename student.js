@@ -455,7 +455,23 @@ async function leaveLive() {
     try { await deleteDoc(doc(db, COL.liveSessions, course.id, "viewers", user.uid)); } catch (e) { /* already gone */ }
   }
   const wrap = document.getElementById("live-wrap");
-  if (wrap) wrap.innerHTML = `<p>You left the live class.</p>`;
+  if (!wrap) return;
+
+  // Check whether the class is still running — if so, let the student
+  // rejoin right here instead of leaving them at a dead end with no way
+  // back in until they navigate away and back.
+  let stillLive = false;
+  if (course) {
+    try {
+      const sessSnap = await getDoc(doc(db, COL.liveSessions, course.id));
+      stillLive = sessSnap.exists() && !!sessSnap.data().active;
+    } catch (e) { /* if this check fails, fall back to the plain message below */ }
+  }
+
+  wrap.innerHTML = stillLive
+    ? `<p>You left the live class.</p><button class="btn-gold" id="rejoin-live"><i class="fa-solid fa-video"></i> Rejoin Live Class</button>`
+    : `<p>You left the live class.</p>`;
+  if (stillLive) document.getElementById("rejoin-live").onclick = () => joinLive();
 }
 
 /* ---------- Exams & Results ---------- */
