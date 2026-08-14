@@ -89,10 +89,36 @@ export const COL = {
   liveSessions: "liveSessions"
 };
 
-/* Free public STUN server used by the Live Class WebRTC feature (teacher.js /
-   student.js). No TURN server is included since free TURN capacity isn't
-   available — see README for what that means in practice. */
-export const ICE_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+/* ICE servers used by the Live Class WebRTC feature (teacher.js / student.js).
+   --------------------------------------------------------------------------
+   STUN alone (the original single Google STUN server here) only helps two
+   people connect directly when their networks allow it — which is exactly
+   why it worked fine when teacher and student were on the same network,
+   but showed blank video/no audio the moment they were on different
+   networks: many real-world networks (mobile data, school/office
+   firewalls, some home routers) block direct peer-to-peer connections
+   entirely. The only fix for that is a TURN server, which relays the
+   audio/video between them instead of connecting them directly.
+
+   Below adds the free, keyless TURN servers from Metered.ca's Open Relay
+   Project (https://www.metered.ca/tools/openrelay/) — the standard, widely
+   used free option for small projects like this one. No signup, no card,
+   $0. One honest limitation: these are shared public demo credentials used
+   by many projects worldwide, so they're best-effort rather than
+   guaranteed-available. If Live Class usage grows and this ever becomes
+   unreliable, Metered.ca also offers a free personal account (50GB/month
+   TURN relay, still $0, just requires their own quick signup) for a
+   dedicated, more reliable quota — a one-line swap of these credentials
+   when/if that's ever needed. */
+export const ICE_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:openrelay.metered.ca:80" },
+    { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
+  ]
+};
 
 /* ==========================================================================
    ACTIVITY LOGGER - used across all dashboards for the admin audit trail
