@@ -57,11 +57,15 @@ function bindSidebar() {
         overview: renderOverview, teachers: renderTeachers, students: renderStudents,
         courses: renderCourses, content: renderContent, exams: renderExams,
         announcements: renderAnnouncements, feedback: renderFeedback,
-        reports: renderReports, logs: renderLogs, bulkImport: renderBulkImport
+        reports: renderReports, logs: renderLogs, bulkImport: renderBulkImport,
+        examCentreStudio: openExamCentreStudio // additive: new Exam Centre content authoring tool (its own page)
       })[view]();
     });
   });
 }
+
+/* ---------- Exam Centre Content Studio (additive; own standalone page) ---------- */
+function openExamCentreStudio() { window.location.href = "content-studio.html"; }
 
 /* ---------- A secondary Firebase app so creating Teacher/Student accounts
    doesn't log the Admin out of their own session ---------- */

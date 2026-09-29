@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam — Scholar's Camp</title>
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="exam-center.css">
+</head>
+<body class="xc-page">
+
+<div class="brand-bar">
+  <img src="logo.png" class="logo" alt="crest">
+  <div class="brand-text"><strong id="xc-title">Exam</strong><small id="xc-subtitle">Scholar's Camp · Exam Centre</small></div>
+  <div class="spacer"></div>
+  <a class="icon-btn" id="xc-exit" href="student.html" title="Back to dashboard"><i class="fa-solid fa-house"></i></a>
+</div>
+
+<div class="exam-timer xc-timer" id="exam-timer" style="display:none;" role="timer" aria-live="off">--:--</div>
+
+<main class="xc-exam-wrap" id="xc-main">
+  <div class="glass-card" id="xc-intro"><div class="ui-loading-state"><div class="ui-spinner"></div><p>Loading exam…</p></div></div>
+
+  <div id="xc-run" class="xc-hidden protected">
+    <div class="xc-run-grid">
+      <section id="xc-qpanel" aria-live="polite"></section>
+      <aside id="xc-palette" aria-label="Question navigator"></aside>
+    </div>
+  </div>
+
+  <div id="xc-result" class="xc-hidden"></div>
+</main>
+
+<div class="exam-warning-overlay" id="warning-overlay" style="display:none;">
+  <i class="fa-solid fa-triangle-exclamation fa-3x" style="color:#d4af37;margin-bottom:14px;"></i>
+  <h3>Fullscreen Exit Detected</h3>
+  <p id="warning-text">Please return to fullscreen to continue your exam.</p>
+  <button class="btn-gold" id="resume-btn">Return to Fullscreen</button>
+</div>
+
+<div class="xc-modal xc-hidden" id="xc-confirm" role="dialog" aria-modal="true" aria-labelledby="xc-confirm-title">
+  <div class="xc-modal-card">
+    <h3 id="xc-confirm-title"><i class="fa-solid fa-paper-plane"></i> Submit your exam?</h3>
+    <p id="xc-confirm-text"></p>
+    <div class="xc-modal-actions">
+      <button type="button" class="btn-outline" id="xc-confirm-cancel">Keep working</button>
+      <button type="button" class="btn-gold" id="xc-confirm-ok"><i class="fa-solid fa-check"></i> Submit now</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="exam-session.js"></script>
+</body>
+</html>

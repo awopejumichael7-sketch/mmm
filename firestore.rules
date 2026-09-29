@@ -72,5 +72,23 @@ service cloud.firestore {
         allow read, write: if isSignedIn();
       }
     }
+
+    // ------------------------------------------------------------------
+    // Exam Centre (additive — separate "xc"-prefixed collections, does not
+    // touch courses/results/examQuestions above). Admin already has full
+    // access to every collection via the wildcard rule near the top; the
+    // rules below only add what teachers and students need.
+    // ------------------------------------------------------------------
+    match /xcSubjects/{id}      { allow read: if isSignedIn(); allow create, update: if isTeacher(); }
+    match /xcExams/{id}         { allow read: if isSignedIn(); allow create, update: if isTeacher(); }
+    match /xcQuestions/{id}     { allow read: if isStudent() || isTeacher(); allow create, update: if isTeacher(); }
+    match /xcBooks/{id}         { allow read: if isSignedIn(); allow create, update: if isTeacher(); }
+    match /xcChapters/{id}      { allow read: if isSignedIn(); allow create, update: if isTeacher(); }
+    match /xcChapterBodies/{id} { allow read: if isSignedIn(); allow create, update: if isTeacher(); }
+    match /xcResults/{id} {
+      allow create: if isStudent() && request.resource.data.studentUid == request.auth.uid;
+      allow read: if isSignedIn();
+      allow update: if isTeacher(); // theory-question grading
+    }
   }
 }

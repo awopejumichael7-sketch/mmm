@@ -65,9 +65,13 @@ function views() {
     overview: renderOverview, materials: renderMaterials, studio: renderStudio,
     live: renderLive, attendance: renderAttendance, examQuestions: renderExamQuestions,
     grading: renderGrading, progress: renderProgress, questions: renderQuestions, feedback: renderFeedback,
-    whiteboard: renderWhiteboardView, ai: renderAI, assignments: renderAssignmentsView, calendar: renderCalendarPage
+    whiteboard: renderWhiteboardView, ai: renderAI, assignments: renderAssignmentsView, calendar: renderCalendarPage,
+    examCentreStudio: openExamCentreStudio // additive: new Exam Centre content authoring tool (its own page)
   };
 }
+
+/* ---------- Exam Centre Content Studio (additive; own standalone page) ---------- */
+function openExamCentreStudio() { window.location.href = "content-studio.html"; }
 
 /* ---------- Whiteboard (free, shared live with students in this course) ---------- */
 function renderWhiteboardView() {

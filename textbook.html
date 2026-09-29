@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Textbook — Scholar's Camp</title>
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="exam-center.css">
+</head>
+<body class="xc-page tb-page">
+
+<div class="brand-bar">
+  <button class="icon-btn" id="tb-menu" title="Chapters" aria-label="Show chapters" aria-controls="tb-sidebar"><i class="fa-solid fa-list-ul"></i></button>
+  <div class="brand-text"><strong id="tb-title">Textbook</strong><small id="tb-sub">Scholar's Camp · Textbook</small></div>
+  <div class="spacer"></div>
+  <button class="icon-btn tb-text-btn" id="tb-font-down" title="Smaller text" aria-label="Smaller text">A<sup>−</sup></button>
+  <button class="icon-btn tb-text-btn" id="tb-font-up" title="Larger text" aria-label="Larger text">A<sup>+</sup></button>
+  <button class="icon-btn" id="tb-theme" title="Light / dark" aria-label="Toggle light or dark"><i class="fa-solid fa-moon"></i></button>
+  <a class="icon-btn" id="tb-exit" href="student.html" title="Back to dashboard" aria-label="Back to dashboard"><i class="fa-solid fa-house"></i></a>
+</div>
+<div class="tb-progress" aria-hidden="true"><div id="tb-progress-bar"></div></div>
+
+<div class="tb-shell">
+  <aside class="tb-sidebar" id="tb-sidebar" aria-label="Chapters">
+    <div class="tb-side-head"><i class="fa-solid fa-book-open"></i> <span id="tb-side-title">Chapters</span></div>
+    <nav id="tb-toc"></nav>
+  </aside>
+  <div class="tb-backdrop" id="tb-backdrop"></div>
+
+  <main class="tb-main" id="tb-main">
+    <article class="tb-article protected" id="tb-article" aria-live="polite">
+      <div class="ui-loading-state"><div class="ui-spinner"></div><p>Loading textbook…</p></div>
+    </article>
+    <div class="tb-pager" id="tb-pager"></div>
+    <p class="tb-note"><i class="fa-solid fa-circle-info"></i> Protected reading-only content — copying and downloading are disabled.</p>
+  </main>
+</div>
+
+<script type="module" src="textbook.js"></script>
+</body>
+</html>

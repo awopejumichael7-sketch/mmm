@@ -4,7 +4,7 @@
    this worker only caches the static shell (HTML/CSS/JS/icons) so the app
    opens and navigates even with zero connectivity.
    ========================================================================== */
-const CACHE_NAME = "cacgw-bible-college-v17";
+const CACHE_NAME = "cacgw-bible-college-v18";
 const APP_SHELL = [
   "./index.html",
   "./admin.html",
@@ -28,7 +28,47 @@ const APP_SHELL = [
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
-  "./logo.png"
+  "./logo.png",
+
+  /* ---------- Exam Centre (additive) ---------- */
+  "./exam-catalog.js",
+  "./math-render.js",
+  "./question-import.js",
+  "./xc-firebase.js",
+  "./xc-common.js",
+  "./exam-center.js",
+  "./exam-center.css",
+  "./exam-session.html",
+  "./exam-session.js",
+  "./textbook.html",
+  "./textbook.js",
+  "./content-studio.html",
+  "./content-studio.js",
+  "./marked.umd.js",
+  "./purify.min.js",
+  "./katex.min.js",
+  "./katex.min.css",
+  "./mhchem.min.js",
+  "./KaTeX_AMS-Regular.woff2",
+  "./KaTeX_Caligraphic-Bold.woff2",
+  "./KaTeX_Caligraphic-Regular.woff2",
+  "./KaTeX_Fraktur-Bold.woff2",
+  "./KaTeX_Fraktur-Regular.woff2",
+  "./KaTeX_Main-Bold.woff2",
+  "./KaTeX_Main-BoldItalic.woff2",
+  "./KaTeX_Main-Italic.woff2",
+  "./KaTeX_Main-Regular.woff2",
+  "./KaTeX_Math-BoldItalic.woff2",
+  "./KaTeX_Math-Italic.woff2",
+  "./KaTeX_SansSerif-Bold.woff2",
+  "./KaTeX_SansSerif-Italic.woff2",
+  "./KaTeX_SansSerif-Regular.woff2",
+  "./KaTeX_Script-Regular.woff2",
+  "./KaTeX_Size1-Regular.woff2",
+  "./KaTeX_Size2-Regular.woff2",
+  "./KaTeX_Size3-Regular.woff2",
+  "./KaTeX_Size4-Regular.woff2",
+  "./KaTeX_Typewriter-Regular.woff2"
 ];
 
 self.addEventListener("install", (event) => {

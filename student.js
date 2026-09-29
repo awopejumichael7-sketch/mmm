@@ -16,6 +16,7 @@ import { renderStudentAssignments, renderUpcomingDeadlines } from "./assignments
 import { renderCalendarView } from "./calendar.js";
 import { initSessionTimeout } from "./session-timeout.js";
 import { handleCheckinFromUrl } from "./attendance-checkin.js";
+import { renderExamCentre } from "./exam-center.js"; // additive: new Exam Centre feature, its own collections, does not touch course-based exams above
 
 initTheme();
 registerServiceWorker();
@@ -69,8 +70,15 @@ function views() {
     exams: renderExams, certificates: renderCertificates,
     questions: renderQuestions, feedback: renderFeedback,
     whiteboard: renderWhiteboardView, calculator: renderCalculatorView, dictionary: renderDictionaryView,
-    assignments: renderAssignmentsView, calendar: renderCalendarPage
+    assignments: renderAssignmentsView, calendar: renderCalendarPage,
+    "exam-centre": renderExamCentreView // additive: new Exam Centre feature (separate from the "exams" view above)
   };
+}
+
+/* ---------- Exam Centre (additive; renders inside the existing main-content panel) ---------- */
+async function renderExamCentreView() {
+  currentView = "exam-centre";
+  await renderExamCentre(main, { user });
 }
 
 /* ---------- Whiteboard (free, shared live with the teacher & classmates) ---------- */
