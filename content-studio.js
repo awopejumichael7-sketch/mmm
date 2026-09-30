@@ -35,6 +35,11 @@ const cache = { customSubjects: null, exams: {}, books: {}, chapters: {}, gradin
 
 let state = { section: "subjects", cat: "year-5", editingExam: null, editingBook: null };
 
+// Guards against a slow, stale fetch (from a tab/category the user already left) overwriting
+// whatever the user has since switched to — every top-level section render checks this before
+// it commits anything to the DOM.
+let renderGen = 0;
+
 /* ==========================================================================
    BOOT
    ========================================================================== */
@@ -92,15 +97,16 @@ function renderShell() {
 }
 
 function renderAll() {
+  const myGen = ++renderGen;
   main.querySelectorAll("#cs-sections button").forEach((b) => b.classList.toggle("active", b.dataset.sec === state.section));
   const needsCat = state.section !== "grading";
   $("cs-cats").innerHTML = needsCat ? catChipsHtml() : "";
   if (needsCat) wireCatChips();
 
-  if (state.section === "subjects") renderSubjects();
-  else if (state.section === "exams") renderExams();
-  else if (state.section === "books") renderBooks();
-  else renderGrading();
+  if (state.section === "subjects") renderSubjects(myGen);
+  else if (state.section === "exams") renderExams(myGen);
+  else if (state.section === "books") renderBooks(myGen);
+  else renderGrading(myGen);
 }
 
 function catChipsHtml() {
@@ -167,11 +173,12 @@ async function syncBookChapterCount(bookId) {
 /* ==========================================================================
    SECTION 1 — SUBJECTS
    ========================================================================== */
-async function renderSubjects() {
+async function renderSubjects(myGen = ++renderGen) {
   const body = $("cs-body");
   body.innerHTML = loadingHtml("Loading subjects…");
   let custom;
   try { custom = await ensureCustomSubjects(); } catch (e) { return showError(body, e, renderSubjects); }
+  if (myGen !== renderGen) return; // superseded by a newer tab/category click while this was loading
 
   const cat = getCategory(state.cat);
   const subjects = subjectsFor(cat.id, custom);
@@ -220,7 +227,7 @@ async function renderSubjects() {
 /* ==========================================================================
    SECTION 2 — EXAMS & QUESTIONS
    ========================================================================== */
-async function renderExams() {
+async function renderExams(myGen = ++renderGen) {
   const body = $("cs-body");
   if (state.editingExam) return renderExamEditor(state.editingExam);
 
@@ -228,6 +235,7 @@ async function renderExams() {
   let exams, custom;
   try { [exams, custom] = await Promise.all([ensureExams(state.cat), ensureCustomSubjects()]); }
   catch (e) { return showError(body, e, renderExams); }
+  if (myGen !== renderGen) return; // superseded by a newer tab/category click while this was loading
 
   const cat = getCategory(state.cat);
   const subjects = subjectsFor(cat.id, custom);
@@ -567,7 +575,7 @@ async function confirmImport(examId, parsed) {
 /* ==========================================================================
    SECTION 3 — TEXTBOOKS & CHAPTERS
    ========================================================================== */
-async function renderBooks() {
+async function renderBooks(myGen = ++renderGen) {
   const body = $("cs-body");
   if (state.editingBook) return renderBookEditor(state.editingBook);
 
@@ -575,6 +583,7 @@ async function renderBooks() {
   let books, custom;
   try { [books, custom] = await Promise.all([ensureBooks(state.cat), ensureCustomSubjects()]); }
   catch (e) { return showError(body, e, renderBooks); }
+  if (myGen !== renderGen) return; // superseded by a newer tab/category click while this was loading
 
   const cat = getCategory(state.cat);
   const subjects = subjectsFor(cat.id, custom);
@@ -806,7 +815,7 @@ async function deleteChapter(bookId, chapterId) {
 /* ==========================================================================
    SECTION 4 — THEORY GRADING
    ========================================================================== */
-async function renderGrading() {
+async function renderGrading(myGen = ++renderGen) {
   const body = $("cs-body");
   body.innerHTML = loadingHtml("Loading results awaiting grading…");
   let pending;
@@ -814,6 +823,7 @@ async function renderGrading() {
     const snap = await getDocs(query(collection(db, XC.results), where("needsManualGrading", "==", true)));
     pending = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.submittedAtISO || "").localeCompare(b.submittedAtISO || ""));
   } catch (e) { return showError(body, e, renderGrading); }
+  if (myGen !== renderGen) return; // superseded by a newer tab/category click while this was loading
 
   if (!pending.length) {
     body.innerHTML = `<div class="glass-card xc-welcome"><i class="fa-solid fa-circle-check"></i><h3>All caught up</h3><p>No theory answers are waiting to be graded.</p></div>`;

@@ -339,6 +339,14 @@ label.xc-option:hover{ border-color:var(--gold); }
 /* KaTeX: keep display-mode equations from overflowing narrow screens */
 .katex-display{ overflow-x:auto; overflow-y:hidden; padding:4px 0; }
 
+/* math-render.js's own fallback for LaTeX so broken that even KaTeX's throwOnError:false
+   can't produce its usual (already-styled) error span — give it the same visual treatment
+   so a malformed equation is never silently invisible to the person reading it. */
+.xc-math-error{
+  color:#c0392b; background:rgba(192,57,43,.08); border:1px dashed rgba(192,57,43,.4);
+  border-radius:4px; padding:1px 5px; font-family:"KaTeX_Main", 'Courier New', monospace; font-size:.92em;
+}
+
 /* ==========================================================================
    3. TEXTBOOK READER (textbook.html / textbook.js)
    ========================================================================== */
@@ -443,6 +451,8 @@ label.xc-option:hover{ border-color:var(--gold); }
     opacity:0; pointer-events:none; transition:opacity .2s ease;
   }
   .tb-backdrop.show{ opacity:1; pointer-events:auto; }
+  /* Lock the background from scrolling behind the sidebar overlay while it's open on mobile. */
+  body.tb-sidebar-open{ overflow:hidden; }
   .tb-main{ height:auto; overflow-y:visible; }
   .tb-shell{ min-height:auto; }
   .tb-article{ padding:26px 18px 10px; }

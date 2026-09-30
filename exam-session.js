@@ -171,7 +171,7 @@ function begin(resuming) {
     questions.forEach((q) => {
       if (q.type === "theory") return;
       const keys = Object.keys(q.options || {}).filter((k) => q.options[k]).sort();
-      optionOrder[q.id] = shuffle_(keys, exam.shuffleOptions === true);
+      optionOrder[q.id] = shuffle_(keys, exam.shuffleOptions !== false);
     });
     const now = Date.now();
     session = {
@@ -317,8 +317,8 @@ document.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   // Arrow keys belong to the radio group when an option has focus (native, accessible behaviour).
   const onRadio = tag === "input";
-  if (!onRadio && k === "arrowright" || k === "n") { go(idx + 1); }
-  else if (!onRadio && k === "arrowleft" || k === "p") { go(idx - 1); }
+  if ((!onRadio && k === "arrowright") || k === "n") { go(idx + 1); }
+  else if ((!onRadio && k === "arrowleft") || k === "p") { go(idx - 1); }
   else if (k === "f") { $("flag-btn").click(); }
   else if (q && q.type !== "theory" && k.length === 1 && k >= "a" && k <= "e") {
     const inputs = document.querySelectorAll('input[name="opt"]');
@@ -415,12 +415,12 @@ function renderResult(r, { auto, reason, state } = {}) {
       ${r.needsManualGrading ? `<p class="xc-muted"><i class="fa-solid fa-hourglass-half"></i> Your written (theory) answers will be marked by your teacher. Your final score will update after marking.</p>` : ""}
       <div class="xc-pills big center">
         <span><i class="fa-regular fa-clock"></i> ${mins}m ${secs}s used</span>
-        <span><i class="fa-solid fa-check"></i> ${Object.keys(r.answers || {}).length + (r.theoryAnswers || []).filter((t) => t.text.trim()).length} answered</span>
+        <span><i class="fa-solid fa-check"></i> ${Object.keys(r.answers || {}).length + (r.theoryAnswers || []).filter((t) => (t.text || "").trim()).length} answered</span>
         ${r.secureMode && r.tabSwitches ? `<span><i class="fa-solid fa-eye-slash"></i> ${plural(r.tabSwitches, "tab switch", "tab switches")}</span>` : ""}
       </div>
       <div class="xc-intro-actions center">
         ${canReview ? `<button class="btn-gold" id="review-btn"><i class="fa-solid fa-magnifying-glass-chart"></i> Review answers</button>` : ""}
-        ${canRetry && state ? `<a class="btn-outline" href="exam-session.html?exam=${encodeURIComponent(examId)}"><i class="fa-solid fa-rotate-right"></i> Try again</a>` : ""}
+        ${canRetry ? `<a class="btn-outline" href="exam-session.html?exam=${encodeURIComponent(examId)}"><i class="fa-solid fa-rotate-right"></i> Try again</a>` : ""}
         <a class="btn-navy" href="student.html"><i class="fa-solid fa-arrow-left"></i> Back to dashboard</a>
       </div>
     </div>
@@ -438,7 +438,7 @@ function reviewHtml(r) {
       const t = taById[q.id];
       const graded = t && typeof t.awarded === "number";
       verdict = graded ? `<span class="xc-verdict ${t.awarded >= (t.marks || 1) / 2 ? "ok" : "bad"}">${t.awarded} / ${t.marks}</span>` : `<span class="xc-verdict pending">Awaiting marking</span>`;
-      body = `<div class="xc-answer-box"><small>Your answer</small>${t && t.text.trim() ? rich(t.text, { breaks: true }) : "<em>No answer given.</em>"}</div>
+      body = `<div class="xc-answer-box"><small>Your answer</small>${t && (t.text || "").trim() ? rich(t.text, { breaks: true }) : "<em>No answer given.</em>"}</div>
         ${t && t.feedback ? `<div class="xc-callout xc-callout-note"><div class="xc-callout-title">Teacher's feedback</div>${rich(t.feedback, { breaks: true })}</div>` : ""}`;
     } else {
       const mine = (r.answers || {})[q.id];

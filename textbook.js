@@ -47,6 +47,7 @@ const readKey = () => `xc_read_${user.uid}_${bookId}`;
 (async function main() {
   initTheme();
   syncThemeIcon();
+  wireChrome(); // header controls (theme/font/menu) don't depend on book data, so wire them before any early return
 
   if (!bookId) return fatal("No textbook was specified.");
 
@@ -54,8 +55,6 @@ const readKey = () => `xc_read_${user.uid}_${bookId}`;
   user = ctx.user; role = ctx.role;
 
   try { await loadMathEngine(); engineOK = isMathEngineReady(); } catch (e) { console.error("Math engine failed to load", e); }
-
-  wireChrome();
 
   try {
     const snap = await getDoc(doc(db, "xcBooks", bookId));
@@ -239,7 +238,9 @@ function afterRender(fromRestore) {
         const el = $("tb-main") || document.scrollingElement;
         if (el) el.scrollTop = saved.scroll * (el.scrollHeight - el.clientHeight);
         updateProgressBar();
-      });
+        saveReadingPosition(); // save AFTER restoring, not before — otherwise this would overwrite
+      });               //   the just-read saved position with scroll:0 before it's ever applied
+      return;
     }
   }
   updateProgressBar();
