@@ -40,6 +40,17 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
 
+    // Assignments: teachers post per-course assignments, students submit their work.
+    // (Pre-existing collections used by assignments.js — this rule was missing
+    // entirely, which is why only admin, who bypasses all rules above, could
+    // use the feature; teachers/students got "Missing or insufficient permissions".)
+    match /assignments/{id} { allow read: if isSignedIn(); allow create, update: if isAdmin() || isTeacher(); }
+    match /assignmentSubmissions/{id} {
+      allow create, update: if isStudent() && request.resource.data.studentUid == request.auth.uid;
+      allow update: if isTeacher(); // grading (grade/feedback)
+      allow read: if isTeacher() || (isStudent() && resource.data.studentUid == request.auth.uid);
+    }
+
     // Exams & results
     match /examQuestions/{id} { allow read: if isStudent() || isTeacher() || isAdmin(); allow write: if isAdmin(); }
     match /results/{id} {
