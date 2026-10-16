@@ -217,11 +217,11 @@ function submitControlsHtml(assignmentId, isReplace) {
     </div>
     <div class="asg-mode-panel" data-mode="picker" data-asg="${assignmentId}" style="display:none;">
       <button class="${isReplace ? "btn-outline" : "btn-gold"} asg-submit-picker-btn" data-asg="${assignmentId}" type="button"><i class="fa-brands fa-google-drive"></i> Connect & Pick a File</button>
-      <p style="color:var(--muted);font-size:.78rem;margin-top:4px;">Signs you into your own Google Drive and lets you choose a file already there. Your school's Google Drive setup must have approved your account first — if it says you can't access this app, use "Paste Drive Link" or "Upload File" instead.</p>
+      <p style="color:var(--muted);font-size:.78rem;margin-top:4px;">Signs you into your own Google Drive and lets you choose a file already there. Your school's Google Drive setup must have approved this app for you to use this option.</p>
     </div>
     <div class="asg-mode-panel" data-mode="link" data-asg="${assignmentId}" style="display:none;">
-      <input type="url" class="asg-link-input" data-asg="${assignmentId}" placeholder="Paste your Google Drive share link…" style="width:100%;max-width:320px;padding:8px 10px;border-radius:8px;border:1.5px solid #d8dde8;">
-      <button class="${isReplace ? "btn-outline" : "btn-gold"} asg-submit-link-btn" data-asg="${assignmentId}" type="button" style="margin-top:6px;"><i class="fa-brands fa-google-drive"></i> ${isReplace ? "Replace with Link" : "Submit Link"}</button>
+      <input type="url" class="asg-link-input" data-asg="${assignmentId}" placeholder="Paste your Google Drive share link…" style="width:100%;max-width:320px;padding:8px 10px;border-radius:8px;border:1px solid #e6e6e6;">
+      <button class="${isReplace ? "btn-outline" : "btn-gold"} asg-submit-link-btn" data-asg="${assignmentId}" type="button" style="margin-top:6px;"><i class="fa-brands fa-google-drive"></i> ${isReplace ? "Replace Submission" : "Submit Link"}</button>
       <p style="color:var(--muted);font-size:.78rem;margin-top:4px;">Set sharing to "Anyone with the link" first, or your teacher won't be able to open it.</p>
     </div>
     <div class="asg-progress" data-asg="${assignmentId}" style="margin-top:6px;"></div>`;
@@ -254,7 +254,7 @@ export async function renderStudentAssignments(container, { course, user, profil
       <p style="margin:10px 0;">${escapeHtml(a.description || "")}</p>
       ${sub
         ? `<div style="background:var(--bg);border-radius:10px;padding:10px 14px;">
-             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a>${sub.method === "drive_link" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive link</span>' : ""}${sub.method === "drive_picker" ? ' <span class="badge active"><i class="fa-brands fa-google-drive"></i> Drive file</span>' : ""}${late ? ' <span class="badge inactive">Late</span>' : ""}
+             <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Submitted: <a href="${sub.fileUrl}" target="_blank" rel="noopener">${escapeHtml(sub.fileName || "your file")}</a> ${late ? '<span class="badge inactive">Late</span>' : ''}
              ${sub.grade ? `<div style="margin-top:6px;"><strong>Grade:</strong> ${escapeHtml(sub.grade)}</div>` : ""}
              ${sub.feedback ? `<div><strong>Feedback:</strong> ${escapeHtml(sub.feedback)}</div>` : ""}
              ${locked
